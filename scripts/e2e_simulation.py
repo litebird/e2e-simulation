@@ -194,18 +194,22 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
 
     
     obs=obs+obs_noise+obs_dip
-    obs_name = map_type+noisetype+['linear','total_from_lin_T']
-    descr = ['_','_','_','_noise_','_noise_','_dip_','_dip_']
-
-    for o_i,o_n in enumerate(obs_name):
-        file_name = base_path+'/obs'+descr[o_i]+o_n+'.h5'
-        with h5py.File(file_name, "w") as output_file:
-            lbs.io.write_one_observation(
-                        output_file=output_file,
-                        obs=obs[o_i],
-                        tod_dtype=np.float32,
-                        pointings_dtype=np.float32,
-                    )
-
+    custom_dicts = [
+            { "myvalue": "cmb" },
+            { "myvalue": "fg" },
+        { "myvalue": "fg_int" },
+        { "myvalue": "w_noise" },
+        { "myvalue": "1_over_f_noise" },
+        { "myvalue": "dip_linear" },
+        { "myvalue": "dip_total_from_lin_T" },
+        ]
+    lbs.io.write_list_of_observations(
+            obs=obs,  # Write the list of observations
+            path=base_path,
+            file_name_mask="tod_{myvalue}.h5",
+            custom_placeholders=custom_dicts,
+        )
+    
+    
     t_save = time.time()
     print('time for saving tods: ', t_save-t_dip)
