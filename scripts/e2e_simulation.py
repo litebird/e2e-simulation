@@ -180,6 +180,24 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
             t_noise_1_f = time.time()
             print('time for filling %s noise timeline: '%(noisetype[i_ob]), t_noise_1_f-t_noise)
 
+
+    (obs_dipole_0,) = sim.create_observations(detectors= dets,
+    n_blocks_det = 1,
+    n_blocks_time = 1,  #size,
+    )
+    (obs_dipole_4,) = sim.create_observations(detectors= dets,
+    n_blocks_det = 1,
+    n_blocks_time = 1,  #size,
+    )
+    obs_dip = [obs_dipole_0,obs_dipole_4]
+    dipole_type = [0,4]
+    orbit = lbs.SpacecraftOrbit(obs_dipole_0.start_time)
+    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs_dipole_0, delta_time_s=86400.0)
+    for i_ob,ob in enumerate(obs_dip):
+        lbs.add_dipole_to_observations(ob, pointings, pos_vel, dipole_type=dipole_type[i_ob])
+    t_dip = time.time()
+    print('time for dipole construction: ', t_dip-t_noise)
+
     
     obs=obs+obs_noise+obs_dip
     custom_dicts = [
