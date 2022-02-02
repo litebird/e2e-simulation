@@ -60,14 +60,14 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
 
     dets=[]
     detquats=[]
-    for i in range(ndet):
+    for i_det in range(ndet):
         if T_and_B:
-            for detname in (detname_T[i],detname_B[i]):
-                det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i]+"/"+detname+"/detector_info",imo=imo)
+            for detname in (detname_T[i_det],detname_B[i_det]):
+                det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i_det]+"/"+detname+"/detector_info",imo=imo)
                 dets.append(det)
                 detquats.append(det.quat)
         else:
-            det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i]+"/"+detname_T[i]+"/detector_info",imo=imo)
+            det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i_det]+"/"+detname_T[i_det]+"/detector_info",imo=imo)
             dets.append(det)
             detquats.append(det.quat)
     t_sim = time.time()
@@ -96,7 +96,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
 
     (obs_noise_w_1_f,) = sim.create_observations(detectors= dets,
         n_blocks_det = 1,
-        n_blocks_time = 1,  #size,
+        n_blocks_time = 1,  #it could be useful to parallelise in the 1/f case
         )
     
     t_obs = time.time()
@@ -118,23 +118,23 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     map_type = ['cmb','fg','fg_int']
     ch_info = []
     ch_names = ''
-    for i in range(ndet):
-        if channel[i] != channel[i-1] or i == 0:
+    for i_det in range(ndet):
+        if channel[i_det] != channel[i_det-1] or i_det == 0:
             ch_info.append(lbs.FreqChannelInfo.from_imo(url="/releases/v1.0/satellite/"
-                                           +telescope+"/"+channel[i]+"/channel_info",imo=imo))
-            ch_names += '_'+channel[i]
+                                           +telescope+"/"+channel[i_det]+"/channel_info",imo=imo))
+            ch_names += '_'+channel[i_det]
 
-    for i in range(3):
-        map_path = base_path+'/'+map_type[i]+'_channels'+ch_names+'.pickle'
+    for i_m in range(len(M_cmb)):
+        map_path = base_path+'/'+map_type[i_m]+'_channels'+ch_names+'.pickle'
         print(map_path)
         if not os.path.isfile(map_path):
             Mbsparams = lbs.MbsParameters(
-                make_cmb =M_cmb[i],
-                make_fg = M_fg[i],
+                make_cmb =M_cmb[i_m],
+                make_fg = M_fg[i_m],
                 seed_cmb = 1,
                 fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"],
                 gaussian_smooth = True,
-                bandpass_int = M_bandint[i],
+                bandpass_int = M_bandint[i_m],
                 nside = nside,
                 units = "K_CMB",
                 maps_in_ecliptic = True,   #maps saved in ecliptic, because of dipole 
@@ -145,7 +145,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
             with open(map_path, 'wb') as f:
                 pickle.dump(maps, f)
             t_map = time.time()
-            if i == 0:
+            if i_m == 0:
                 print('time for creating map: ', t_map-t_point)
             else:
                 print('time for creating map: ', t_map-t_tod)
@@ -153,12 +153,13 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
             with open(map_path,'rb') as f:
                 maps = pickle.load(f)
             t_map = time.time()
-            if i == 0:
+            if i_m == 0:
                 print('time for reading map: ', t_map-t_point)
             else:
                 print('time for reading map: ', t_map-t_tod)
+
         lbs.scan_map_in_observations(
-                obs[i], pointings, hwp_radpsec, maps, fill_psi_and_pixind_in_obs=True
+                obs[i_m], pointings, hwp_radpsec, maps, fill_psi_and_pixind_in_obs=True
             )
         t_tod = time.time()
         print('time for writing tod: ', t_tod-t_map)
@@ -168,29 +169,16 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     obs_noise = [obs_noise_w,obs_noise_w_1_f]
     for i_ob,ob in enumerate(obs_noise):
         print(noisetype[i_ob])
-        ob.net_ukrts = []
-        for i in range(ndet):
-            ob.net_ukrts += [noise[i],noise[i]]
-        lbs.add_noise([ob],noisetype[i_ob],scale = 1) #,random=random)
-    t_noise = time.time()
-    print('time for filling noise timeline: ', t_noise-t_tod)
-
-    (obs_dipole_0,) = sim.create_observations(detectors= dets,
-    n_blocks_det = 1,
-    n_blocks_time = 1,  #size,
-    )
-    (obs_dipole_4,) = sim.create_observations(detectors= dets,
-    n_blocks_det = 1,
-    n_blocks_time = 1,  #size,
-    )
-    obs_dip = [obs_dipole_0,obs_dipole_4]
-    dipole_type = [0,4]
-    orbit = lbs.SpacecraftOrbit(obs_dipole_0.start_time)
-    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs_dipole_0, delta_time_s=86400.0)
-    for i_ob,ob in enumerate(obs_dip):
-        lbs.add_dipole_to_observations(ob, pointings, pos_vel, dipole_type=dipole_type[i_ob])
-    t_dip = time.time()
-    print('time for dipole construction: ', t_dip-t_noise)
+        ob.net_ukrts = np.zeros(obs_cmb.tod.shape[0])
+        for i_det in range(ndet):
+            ob.net_ukrts[i_det] += [noise[i_det]]
+        lbs.add_noise_to_observations([ob],noisetype[i_ob],scale = 1) #,random=random)
+        if noisetype[i_ob] == 'white':
+            t_noise = time.time()
+            print('time for filling %s noise timeline: '%(noisetype[i_ob]), t_noise-t_tod)
+        else:
+            t_noise_1_f = time.time()
+            print('time for filling %s noise timeline: '%(noisetype[i_ob]), t_noise_1_f-t_noise)
 
     
     obs=obs+obs_noise+obs_dip
