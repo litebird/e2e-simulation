@@ -41,10 +41,8 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
 
     start_time = astropy.time.Time('2029-01-01T00:00:00')
     ndet = np.size(detname_T)
-    if ndet == 1:
-        base_path = "/tmp/sim_ns"+str(nside)+'_'+telescope+'_'+channel[0]
-    else:
-        base_path = "/tmp/sim_ns"+str(nside)+'_'+telescope+"_n_det_"+str(ndet)+'_'+str(mission_time_days)+'d'
+    base_path = "/tmp/sim_ns"+str(nside)+'_'+telescope
+    
     t_in = time.time()
     imo = lbs.Imo()
 
@@ -118,16 +116,20 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     map_type = ['cmb','fg','fg_int']
     ch_info = []
     ch_names = ''
+    file_list = os.listdir(base_path)
     for i_det in range(ndet):
         if channel[i_det] != channel[i_det-1] or i_det == 0:
             ch_info.append(lbs.FreqChannelInfo.from_imo(url="/releases/v1.0/satellite/"
                                            +telescope+"/"+channel[i_det]+"/channel_info",imo=imo))
             ch_names += '_'+channel[i_det]
+            m_files = [fn for fn in file_list if str(channel[i_det]) in fn] 
+
 
     for i_m in range(len(M_cmb)):
         map_path = base_path+'/'+map_type[i_m]+'_channels'+ch_names+'.pickle'
-        print(map_path)
-        if not os.path.isfile(map_path):
+        m_file = [fn for fn in m_files if map_type[i_m]+'_channels' in fn] #are there maps for all of my channels?
+        print('existing maps:', m_file, 'desired map', map_path)
+        if m_file == []:   #if there are not existing maps for all of my channels (or more), I generate them
             Mbsparams = lbs.MbsParameters(
                 make_cmb =M_cmb[i_m],
                 make_fg = M_fg[i_m],
@@ -149,9 +151,14 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
                 print('time for creating map: ', t_map-t_point)
             else:
                 print('time for creating map: ', t_map-t_tod)
-        else:
-            with open(map_path,'rb') as f:
-                maps = pickle.load(f)
+        else:   
+            with open(base_path+'/'+m_file[0],'rb') as f:  #read the existing map
+                read_map = pickle.load(f)
+            if os.path.isfile(map_path):  #if the existing map includes exactly all my channels and nothing more, I just read it
+                maps = read_map
+            else:  #if the esisting map has more than the needed channels, I create a new dictionary with only my channels
+                maps = {k: read_map[k] for k in read_map.keys() if k in channel}
+            print('channels of our map dict.:', maps.keys())
             t_map = time.time()
             if i_m == 0:
                 print('time for reading map: ', t_map-t_point)
@@ -199,6 +206,20 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     print('time for dipole construction: ', t_dip-t_noise)
 
     
+    if T_and_B:
+        if ndet == 1:
+            tod_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
+        else:
+            tod_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
+    else:
+        if ndet == 1:
+            tod_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
+        else:
+            tod_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
+    print('tod path:', tod_path)
+    if not os.path.exists(tod_path):
+        os.mkdir(tod_path)
+    
     obs=obs+obs_noise+obs_dip
     custom_dicts = [
             { "myvalue": "cmb" },
@@ -211,7 +232,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
         ]
     lbs.io.write_list_of_observations(
             obs=obs,  # Write the list of observations
-            path=base_path,
+            path=tod_path,
             file_name_mask="tod_{myvalue}.h5",
             custom_placeholders=custom_dicts,
         )
