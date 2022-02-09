@@ -12,13 +12,11 @@ import h5py
 
 def read_channel_detname_noise(T,ni_det,nf_det):  
     '''
-    Function parsing arguments to fill_tod_maps. 
-    mission_time_days: days of observations;
+    Function reading the list of channels, detector names and rescaled noise for the list of detectors selected for the e2e simulation. 
     T: telescope name (string) e.g. 'LFT';
     ni_det: index of detector in the detectors list 'list_detectors_good_(L/M/H)FT' from which starting reading (integer number); 
     nf_det: index of detector in the detectors list 'list_detectors_good_(L/M/H)FT' up to which reading (integer number),
             i.e. detectors are read in the list from ni_det to nf_det; 
-    T_and_B: True (if you want to include both Top&Bottom detectors between ni_det and nf_det) or False (if you want to include just Top detector)
     '''
 
     l_path = os.path.dirname(os.getcwd())+"/ancillary/list_detectors_good_"+T+".txt"
@@ -36,6 +34,14 @@ def fill_tod(telescope, channel, detname_T, noise, nside, mission_time_days, T_a
     detector, and writes seven separated timelines (cmb,fg w/o band integration, fg w/ band integration,
     white noise, white+1/f noise, linear dipole, complete dipole) to be saved in separated hdf5 files. 
     The time employed for each step is printed.
+    telescope: telescope name (string) e.g. 'LFT';
+    channel: list of channels (returned from read_channel_detname_noise);
+    detname_T: list of (Top) detector names (returned from read_channel_detname_noise);
+    noise: list of rescaled noise (returned from read_channel_detname_noise);
+    nside: the nside for the CMB and FG maps generated;
+    mission_time_days: days of observations;
+    T_and_B: True (if you want to include both Top&Bottom detectors between ni_det and nf_det) or False (if you want to include just Top detector);
+    base_path: path where you want to save the maps and observations generated 
     '''
 
     start_time = astropy.time.Time('2029-01-01T00:00:00')
@@ -210,17 +216,17 @@ def fill_tod(telescope, channel, detname_T, noise, nside, mission_time_days, T_a
     
     if T_and_B:
         if ndet == 1:
-            tod_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
+            obs_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
         else:
-            tod_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
+            obs_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
     else:
         if ndet == 1:
-            tod_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
+            obs_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
         else:
-            tod_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
-    print('tod path:', tod_path)
-    if not os.path.exists(tod_path):
-        os.mkdir(tod_path)
+            obs_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
+    print('obs. path:', obs_path)
+    if not os.path.exists(obs_path):
+        os.mkdir(obs_path)
     
     obs=obs+obs_noise+obs_dip
     custom_dicts = [
@@ -234,7 +240,7 @@ def fill_tod(telescope, channel, detname_T, noise, nside, mission_time_days, T_a
         ]
     lbs.io.write_list_of_observations(
             obs=obs,  # Write the list of observations
-            path=tod_path,
+            path=obs_path,
             file_name_mask="obs_{myvalue}.h5",
             custom_placeholders=custom_dicts,
         )
@@ -248,26 +254,32 @@ def read_all_obs(telescope, detname_T, nside, mission_time_days, T_and_B, base_p
     """
     This function reads and returns the observations for cmb,fg w/o band integration, fg w/ band integration,
     white noise, white+1/f noise, linear dipole and complete dipole, saved in separated hdf5 files. 
+    telescope: telescope name (string) e.g. 'LFT';
+    detname_T: list of (Top) detector names (returned from read_channel_detname_noise);
+    nside: the nside for the CMB and FG maps generated;
+    mission_time_days: days of observations;
+    T_and_B: True (if you want to include both Top&Bottom detectors between ni_det and nf_det) or False (if you want to include just Top detector);
+    base_path: path where you want to save the maps and observations generated 
     """
     base_path += "/sim_ns"+str(nside)+'_'+telescope
     ndet = np.size(detname_T)
     if T_and_B:
         if ndet == 1:
-            tod_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
+            obs_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
         else:
-            tod_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
+            obs_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
     else:
         if ndet == 1:
-            tod_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
+            obs_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
         else:
-            tod_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
-    print('tod path:', tod_path)
+            obs_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
+    print('obs. path:', obs_path)
     
     obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT=lbs.io.read_list_of_observations(file_name_list = [
-                                            tod_path+"/obs_cmb.h5",tod_path+"/obs_fg.h5",
-                                            tod_path+"/obs_fg_int.h5",tod_path+"/obs_w_noise.h5",
-                                            tod_path+"/obs_1_over_f_noise.h5",tod_path+"/obs_dip_linear.h5",
-                                            tod_path+"/obs_dip_total_from_lin_T.h5",])  
+                                            obs_path+"/obs_cmb.h5",obs_path+"/obs_fg.h5",
+                                            obs_path+"/obs_fg_int.h5",obs_path+"/obs_w_noise.h5",
+                                            obs_path+"/obs_1_over_f_noise.h5",obs_path+"/obs_dip_linear.h5",
+                                            obs_path+"/obs_dip_total_from_lin_T.h5",])  
 
 
     return obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT
@@ -276,7 +288,11 @@ def read_all_obs(telescope, detname_T, nside, mission_time_days, T_and_B, base_p
 def build_map(obs, pointings, psi, detname_T, nside):
     """
     This function generates a map out of the observation including a specific timeline (cmb, noise, fg...). 
-    The pointings and psi can be get from obs_cmb.pointings and obs_cmb.psi respectively.
+    obs: one of the observations returned from read_all_obs, containing the timeline from which you want to generate a map;
+    pointings: it can be get from obs_cmb.pointings;
+    psi: it can be get from obs_cmb.psi;
+    detname_T: list of (Top) detector names (returned from read_channel_detname_noise);
+    nside: the nside of the map you want to generate;
     """
     ndet = np.size(detname_T)
     try: 
