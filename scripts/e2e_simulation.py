@@ -10,7 +10,7 @@ import pickle
 import h5py
 
 
-def read_dets(T,ni_det,nf_det):  
+def read_channel_detname_noise(T,ni_det,nf_det):  
     '''
     Function parsing arguments to fill_tod_maps. 
     mission_time_days: days of observations;
@@ -27,11 +27,10 @@ def read_dets(T,ni_det,nf_det):
     channel = l_file[ni_det:nf_det,1]
     noise = l_file[ni_det:nf_det,4].astype(dtype = float)
     detname_T = l_file[ni_det:nf_det,6]
-    detname_B = l_file[ni_det:nf_det,7]
     
-    return channel, detname_T, detname_B, noise  
+    return channel, detname_T,  noise  
 
-def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, mission_time_days, T_and_B, base_path):
+def fill_tod(telescope, channel, detname_T, noise, nside, mission_time_days, T_and_B, base_path):
     '''
     This function initializes a simulation, generates or reads a dictionaty of CMB/FG maps, one for each
     detector, and writes seven separated timelines (cmb,fg w/o band integration, fg w/ band integration,
@@ -56,10 +55,12 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
         spin_rotangle_rad=np.deg2rad(inst_info.metadata["spin_rotangle_deg"]),)
     hwp_radpsec = inst_info.metadata["hwp_rpm"]*2*np.pi/60
 
+
+    detname_B = np.array([n[:-1]+'B' for n in detname_T if T_and_B])
     dets=[]
     detquats=[]
     for i_det in range(ndet):
-        if T_and_B:
+        if T_and_B:   #whether we want to select both Top and Bottom detectors
             for detname in (detname_T[i_det],detname_B[i_det]):
                 det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i_det]+"/"+detname+"/detector_info",imo=imo)
                 dets.append(det)
@@ -105,6 +106,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
         detector_quats = detquats,
         bore2spin_quat = inst.bore2spin_quat,)
 
+    obs_cmb.pointings = pointings   #we add pointings as an attribute of obs_cmb, which can be saved in case we want to generate a map
 
     t_point = time.time()
     print('time for pointings: ', t_point-t_obs)
@@ -222,7 +224,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     
     obs=obs+obs_noise+obs_dip
     custom_dicts = [
-            { "myvalue": "cmb" },
+            { "myvalue": "cmb" },    #obs_cmb will also have the pointing saved
             { "myvalue": "fg" },
         { "myvalue": "fg_int" },
         { "myvalue": "w_noise" },
@@ -242,7 +244,7 @@ def fill_tod_maps(telescope, channel, detname_T, detname_B, noise, nside, missio
     print('time for saving tods: ', t_save-t_dip)
 
 
-def read_obs_list(telescope, detname_T, nside, mission_time_days, T_and_B, base_path):
+def read_all_obs(telescope, detname_T, nside, mission_time_days, T_and_B, base_path):
     """
     This function reads and returns the observations for cmb,fg w/o band integration, fg w/ band integration,
     white noise, white+1/f noise, linear dipole and complete dipole, saved in separated hdf5 files. 
@@ -261,51 +263,26 @@ def read_obs_list(telescope, detname_T, nside, mission_time_days, T_and_B, base_
             tod_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
     print('tod path:', tod_path)
     
-    obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,tod_dip_tot_linT=lbs.io.read_list_of_observations(file_name_list = [
+    obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT=lbs.io.read_list_of_observations(file_name_list = [
                                             tod_path+"/obs_cmb.h5",tod_path+"/obs_fg.h5",
                                             tod_path+"/obs_fg_int.h5",tod_path+"/obs_w_noise.h5",
                                             tod_path+"/obs_1_over_f_noise.h5",tod_path+"/obs_dip_linear.h5",
                                             tod_path+"/obs_dip_total_from_lin_T.h5",])  
 
 
-    return obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,tod_dip_tot_linT
+    return obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT
 
 
-def build_map(telescope, channel, obs, detname_T, nside, mission_time_days, T_and_B, base_path):
+def build_map(obs, pointings, psi, detname_T, nside):
     """
-    This function generates a map out of one observation
+    This function generates a map out of the observation including a specific timeline (cmb, noise, fg...). 
+    The pointings and psi can be get from obs_cmb.pointings and obs_cmb.psi respectively.
     """
-    start_time = astropy.time.Time('2029-01-01T00:00:00')
-    imo = lbs.Imo()
     ndet = np.size(detname_T)
-    base_path += "/sim_ns"+str(nside)+'_'+telescope
-    sim = lbs.Simulation(base_path=base_path,#mpi_comm=comm,
-                           start_time=start_time,duration_s=mission_time_days*24*3600.0)
-    inst_info = sim.imo.query("/releases/v1.0/satellite/"+telescope+"/instrument_info")
-    sim.generate_spin2ecl_quaternions(imo_url="/releases/v1.0/satellite/scanning_parameters/")
-    inst = lbs.InstrumentInfo(name=telescope, 
-        boresight_rotangle_rad=np.deg2rad(inst_info.metadata["boresight_rotangle_deg"]),
-        spin_boresight_angle_rad=np.deg2rad(inst_info.metadata["spin_boresight_angle_deg"]),
-        spin_rotangle_rad=np.deg2rad(inst_info.metadata["spin_rotangle_deg"]),)
-
-    detname_B = np.array([n[:-1]+'B' for n in detname_T])
-    dets=[]
-    detquats=[]
-    for i_det in range(ndet):
-        if T_and_B:
-            for detname in (detname_T[i_det],detname_B[i_det]):
-                det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i_det]+"/"+detname+"/detector_info",imo=imo)
-                dets.append(det)
-                detquats.append(det.quat)
-        else:
-            det=lbs.DetectorInfo.from_imo(url="/releases/v1.0/satellite/"+telescope+"/"+channel[i_det]+"/"+detname_T[i_det]+"/detector_info",imo=imo)
-            dets.append(det)
-            detquats.append(det.quat)
-
-    pointings = lbs.scanning.get_pointings(obs,
-            spin2ecliptic_quats = sim.spin2ecliptic_quats,
-            detector_quats = detquats,
-            bore2spin_quat = inst.bore2spin_quat,)
+    try: 
+        obs.__getattribute__("psi")
+    except:
+        obs.psi = psi
 
     obs.pixind = np.empty_like(obs.tod, dtype=np.int)
     for i_det in range(ndet):
