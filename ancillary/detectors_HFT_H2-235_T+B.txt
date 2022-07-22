@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 HFT		H2-235		76.06		86/254		25.55		002_001_000_Q_235_B
 HFT		H2-235		76.06		86/254		25.55		002_001_000_Q_235_T
 HFT		H2-235		76.06		86/254		25.55		002_001_002_Q_235_B

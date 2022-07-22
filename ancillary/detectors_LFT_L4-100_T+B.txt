@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 LFT		L4-100		54.88		48/144		18.29		000_001_002_UA_100_T
 LFT		L4-100		54.88		48/144		18.29		000_001_002_UA_100_B
 LFT		L4-100		54.88		48/144		18.29		000_001_003_UB_100_T

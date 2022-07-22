@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 LFT		L3-119		40.78		48/144		13.59		000_001_020_QA_119_T
 LFT		L3-119		40.78		48/144		13.59		000_001_020_QA_119_B
 LFT		L3-119		40.78		48/144		13.59		000_001_021_QB_119_T

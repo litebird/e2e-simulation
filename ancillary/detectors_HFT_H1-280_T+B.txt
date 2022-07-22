@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 HFT		H1-280		97.26		86/254		32.67		002_000_000_Q_280_B
 HFT		H1-280		97.26		86/254		32.67		002_000_000_Q_280_T
 HFT		H1-280		97.26		86/254		32.67		002_000_002_Q_280_B

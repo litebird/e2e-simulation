@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 LFT		L1-060		65.28		48/48		37.69		000_000_003_QA_060_T
 LFT		L1-060		65.28		48/48		37.69		000_000_003_QA_060_B
 LFT		L1-060		65.28		48/48		37.69		000_000_004_QB_060_T

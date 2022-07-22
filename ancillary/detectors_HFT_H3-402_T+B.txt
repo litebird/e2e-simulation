@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 HFT		H3-402		385.69		116/338		130.45		002_002_000_Q_402_B
 HFT		H3-402		385.69		116/338		130.45		002_002_000_Q_402_T
 HFT		H3-402		385.69		116/338		130.45		002_002_002_Q_402_B

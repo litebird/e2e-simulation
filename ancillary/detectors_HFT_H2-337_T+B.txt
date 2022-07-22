@@ -1,4 +1,4 @@
-# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name_T
+# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name
 HFT		H2-337		154.64		86/254		51.95		002_001_000_Q_337_B
 HFT		H2-337		154.64		86/254		51.95		002_001_000_Q_337_T
 HFT		H2-337		154.64		86/254		51.95		002_001_002_Q_337_B
