@@ -42,12 +42,12 @@ for detname in ch_info.detector_names:
     detquats.append(det.quat)
     
 obs, = sim.create_observations(detectors=dets,
-    distribute = False,
+    split_list_over_processes = False,
     n_blocks_det = 1,
     n_blocks_time = size,
     )
 
-pointings = lbs.scanning.get_pointings(obs,
+pointings = lbs.get_pointings(obs,
     spin2ecliptic_quats = sim.spin2ecliptic_quats,
     detector_quats = detquats,
     bore2spin_quat = inst.bore2spin_quat,)
