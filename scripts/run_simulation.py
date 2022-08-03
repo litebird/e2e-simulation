@@ -91,5 +91,4 @@ comm.barrier()
 if comm.rank==0:
     print('Writing map')
     hp.write_map(outmapfile,m,overwrite=True)
-
-
+    sim.flush()
