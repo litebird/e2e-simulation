@@ -4,36 +4,59 @@ import healpy as hp
 import time
 from astropy.time import Time
 import os
-#import pickle
-#import h5py
 import pathlib
+import sys
 
-def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim, base_path, mapmaking_type='destriper'):
+def e2e_sim_production(toml_filename):
     '''
     This function initializes a simulation, generates or reads a dictionaty of CMB/FG maps, one for each
     detector, and writes seven separated timelines (cmb,fg w/o band integration, fg w/ band integration,
     white noise, white+1/f noise, linear dipole, complete dipole) to be saved in separated hdf5 files. 
     The time employed for each step is printed.
-    telescope: telescope name (string) e.g. 'LFT';
-    det_names_file: file containing detector names, each one associated with its channel and noise NET.
-                    Only and all detectors in this file will be used, e.g. to consider only top
-                    detectors you should produce a file only with those detectors. This string is
-                    also used for save file names;
-    channels: list of channels (returned from read_channel_detname_noise)
-              IMPORTANT: this script should be run with only 1 channel;
-    detnames: list of detector names (returned from read_channel_detname_noise);
-    noises: list of rescaled noise (returned from read_channel_detname_noise);
-    nside: the nside for the CMB and FG maps generated;
-    mission_time_days: days of observations;
-    isim: simulation number;
-    base_path: path where you want to save the maps and observations generated;
-    mapmaking_type: binned, destriper or all
+
+    toml_filename: name of the TOML file where the following parameters are specified:
+        telescope: telescope name (string) e.g. 'LFT';
+        det_names_file: file containing detector names, each one associated with its channel and noise NET.
+                        Only and all detectors in this file will be used, e.g. to consider only top
+                        detectors you should produce a file only with those detectors. This string is
+                        also used for save file names;
+        channels: list of channels (returned from read_channel_detname_noise)
+                  IMPORTANT: this script should be run with only 1 channel;
+        detnames: list of detector names (returned from read_channel_detname_noise);
+        noises: list of rescaled noise (returned from read_channel_detname_noise);
+        nside: the nside for the CMB and FG maps generated;
+        mission_time_days: days of observations;
+        isim: simulation number;
+        base_path: path where you want to save the maps and observations generated;
+        mapmaking_type: binned, destriper or all
     '''
 
     #for parallelization; each rank handles 1 day of observation
     comm = lbs.MPI_COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
+    
+    if(rank==0):
+        t_in = time.time()
+
+    #initializing the IMO
+    imo = lbs.Imo()
+
+    #initializing the simulation
+    sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
+                         mpi_comm=comm
+                         )
+
+    #extract useful parameters
+    base_path         =     sim.parameters["simulation"]["base_path"]
+    imo_version       =     sim.parameters["general"]["imo_version"]
+    input_maps_path   =     sim.parameters["general"]["input_maps_path"]
+    telescope         =     sim.parameters["general"]["telescope"]
+    det_names_file    =     sim.parameters["general"]["det_names_file"]
+    nside             = int(sim.parameters["general"]["nside"])
+    isim              = int(sim.parameters["general"]["isim"])
+    mission_time_days =     sim.parameters["general"]["mission_time_days"]
+    mapmaking_type    =     sim.parameters["general"]["mapmaking_type"]
 
     #read channel, noise and detector names
     det_names_file_path = os.path.dirname(os.getcwd())+"/ancillary/"+det_names_file+".txt"
@@ -43,35 +66,16 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
     noises   = det_file[:,4].astype(dtype = float)
     detnames = det_file[:,5]
 
-    #simulation start time
-    start_time = Time('2030-04-01T00:00:00')
-
     #number of detectors = raws of {det_names_file}.txt
     ndet = np.size(detnames)
-
-    #simulation folder
-    base_path += "e2e_ns"+str(nside)+"/sim"+str(isim).zfill(3)
-    
-    if(rank==0):
-        t_in = time.time()
-
-    #initializing the IMO
-    imo = lbs.Imo()
-
-    #initializing the simulation
-    sim = lbs.Simulation(base_path=base_path,
-                         mpi_comm=comm,
-                         start_time=start_time,
-                         duration_s=mission_time_days*24*3600.0
-                         )
 
     comm.barrier()
 
     #loading the instrument metadata
-    inst_info = sim.imo.query("/releases/v1.3/satellite/"+telescope+"/instrument_info")
+    inst_info = sim.imo.query("/releases/"+imo_version+"/satellite/"+telescope+"/instrument_info")
 
     #generating the quaternions of the instrument 
-    sim.generate_spin2ecl_quaternions(imo_url="/releases/v1.3/satellite/scanning_parameters/")
+    sim.generate_spin2ecl_quaternions(imo_url="/releases/"+imo_version+"/satellite/scanning_parameters/")
 
     #loading instrument info
     inst = lbs.InstrumentInfo(name=telescope, 
@@ -84,7 +88,7 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
     dets = []
     detquats = []
     for i_det in range(ndet):
-        det = lbs.DetectorInfo.from_imo(url="/releases/v1.3/satellite/"+telescope+"/"+channels[i_det]+"/"+detnames[i_det]+"/detector_info",
+        det = lbs.DetectorInfo.from_imo(url="/releases/"+imo_version+"/satellite/"+telescope+"/"+channels[i_det]+"/"+detnames[i_det]+"/detector_info",
                                         imo=imo)
         #det.sampling_rate_hz = 1 #if commented, this parameter is taken from the IMO
         dets.append(det)
@@ -189,8 +193,6 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
     for i_m in range(len(input_map_type)):
         #rank 0 reads maps and broadcasts them to the other processors
         if(rank==0):
-            input_maps_path = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
-
             #select frequency (IMPORTANT: this script should be run with only 1 channel)
             freq = int(channels[0][3:6]) #e.g.: channels[0] = 'L2-050' --> freq = 50
             #load maps
@@ -224,7 +226,7 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
 
     if(rank==0):
         t_tod = time.time()
-        print('time for creating and scanning map tod: ', t_tod-t_point)
+        print('time for reading and scanning map for TODs: ', t_tod-t_point)
 
     comm.barrier()
 
@@ -256,7 +258,7 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
             print('time for dipole construction: ', t_dip-t_tod)
 
         #create save path for observation
-        obs_path = base_path+'/TOD_'+det_names_file
+        obs_path = base_path+'TOD_'+det_names_file
         if(rank==0):
             #this has to be done by rank 0 to avoid conflicts        
             if not os.path.exists(obs_path):
@@ -286,7 +288,7 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
             print('time for saving tods: ', t_save-t_dip)
 
     #create save path for output maps
-    map_path = base_path+'/maps_'+det_names_file+'/'
+    map_path = base_path+'maps_'+det_names_file+'/'
     if(rank==0):
         if not os.path.exists(map_path):
             os.mkdir(map_path)
@@ -314,39 +316,46 @@ def e2e_sim_production(telescope, det_names_file, nside, mission_time_days, isim
     #build the output maps with a binned mapmaker
     if(mapmaking_type=='binned' or mapmaking_type=='all'):
         for i in range(len(obs_list_mapmaking)):
-            map_output = lbs.make_bin_map(obs_list_mapmaking[i],
-                                          nside,
-                                          pointings=pointings_mapmaking[i],
-                                          do_covariance=False,
-                                          output_map_in_galactic=True
-                                          )
+            map_output, cov_output = lbs.make_bin_map(obs_list_mapmaking[i],
+                                                      nside,
+                                                      pointings=pointings_mapmaking[i],
+                                                      do_covariance=True,
+                                                      output_map_in_galactic=True
+                                                      )
             #save binned maps
             if(rank==0):
-                hp.write_map(map_path+'map_binned_'+filenames_mapmaking[i]+'_'+str(mission_time_days)+'d.fits',
+                hp.write_map(map_path+'map_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.fits',
                              map_output,
                              overwrite=True
                              )
+                np.save(map_path+'cov_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.npy',
+                        cov_output
+                        )
 
     #build the output maps with a destriper
     if(mapmaking_type=='destriper' or mapmaking_type=='all'):
-        for i in range(len(obs_list_mapmaking)):
-            param_noise_madam = lbs.DestriperParameters(nside=nside,
-                                                        nnz=3, #compute I, Q, and U
-                                                        baseline_length_s=60,
-                                                        return_hit_map=False,
-                                                        return_binned_map=False,
-                                                        return_destriped_map=False,
-                                                        coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
-                                                        #iter_max=10, #defaul is 100
-                                                        output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+str(mission_time_days)+'d_'
-                                                        )
-            result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
-                                                         base_path=pathlib.PosixPath(map_path),
-                                                         params=param_noise_madam,
-                                                         pointings=pointings_mapmaking[i]
-                                                         )
+        if(rank==0):#MBNR rank 0 for test
+            for i in range(len(obs_list_mapmaking)):
+                param_noise_madam = lbs.DestriperParameters(nside=nside,
+                                                            nnz=3, #compute I, Q, and U
+                                                            baseline_length_s=60,
+                                                            return_hit_map=False,
+                                                            return_binned_map=False,
+                                                            return_destriped_map=False,
+                                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+                                                            #iter_max=10, #defaul is 100
+                                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
+                                                            )
+                result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
+                                                             base_path=pathlib.PosixPath(map_path),
+                                                             params=param_noise_madam,
+                                                             pointings=pointings_mapmaking[i]
+                                                             )
+
+    comm.barrier()
 
     if(rank==0):
+        sim.flush()
         print("Done")
 
 
