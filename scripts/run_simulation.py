@@ -15,6 +15,7 @@ start_time     = '2030-04-01T00:00:00'
 nproc          = 1#365    #number of simulation days, too
 mapmaking_type = 'binned' #binned, destriper or all
 imo_version    = 'v1.3'
+name           = 'sim'+isim+'_'+det_names_file
 
 #paths
 coderoot        = #COMPLETE HERE   #folder where e2e_simulation.py is stored
@@ -37,6 +38,7 @@ with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
     f.write('mission_time_days = \''+str(nproc)+'\'\n')
     f.write('mapmaking_type = \''+mapmaking_type+'\'\n')
     f.write('[simulation]\n')
+    f.write('name = \''+name+'\'\n')
     f.write('base_path = \''+base_path+'\'\n')
     f.write('start_time = \''+start_time+'\'\n')
     f.write('duration_s = \''+str(nproc)+' days\'\n')

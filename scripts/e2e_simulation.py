@@ -61,52 +61,15 @@ def e2e_sim_production(toml_filename):
     duration_s        =     sim.parameters["simulation"]["duration_s"]
     start_time        =     sim.parameters["simulation"]["start_time"]
 
-
-    if(rank==0):
-        # Create report
-        sim.append_to_report("""
-
-        ## Used parameters
-
-        [General]
-        - imo_version = {{imo_version}}
-        - input_maps_path = {{input_maps_path}}
-        - telescope = {{telescope}}
-        - det_names_file = {{det_names_file}}
-        - nside = {{nside}}
-        - isim = {{isim}}
-        - mission_time_days = {{mission_time_days}}
-        - mapmaking_type = {{mapmaking_type}}
-
-        [Simulation]
-        - base_path = {{base_path}}
-        - start_time = {{start_time}}
-        - duration_s = {{duration_s}}
-
-        """,
-            imo_version       = imo_version,
-            input_maps_path   = input_maps_path,
-            telescope         = telescope,
-            det_names_file    = det_names_file,
-            nside             = nside,
-            isim              = isim,
-            mission_time_days = mission_time_days,
-            mapmaking_type    = mapmaking_type,
-            base_path         = base_path,
-            duration_s        = duration_s,
-            start_time        = start_time
-
-        )
-        sim.flush()
-    sys.exit()
-
-
     #read channel, noise and detector names
     det_names_file_path = os.path.dirname(os.getcwd())+"/ancillary/"+det_names_file+".txt"
-    det_file = np.genfromtxt(det_names_file_path, skip_header = 1, dtype = str)
+    det_file = np.genfromtxt(det_names_file_path,
+                             skip_header=1,
+                             dtype=str
+                             )
 
     channels = det_file[:,1]
-    noises   = det_file[:,4].astype(dtype = float)
+    noises   = det_file[:,4].astype(dtype=float)
     detnames = det_file[:,5]
 
     #number of detectors = raws of {det_names_file}.txt
@@ -397,33 +360,51 @@ def e2e_sim_production(toml_filename):
 
     comm.barrier()
 
+    # Create report
     if(rank==0):
-        # Create report
         sim.append_to_report("""
 
-        ## Used parameters
+## Used parameters
 
-        [General]
-        - imo_version = {{imo_version}}
-        - input_maps_path = {{input_maps_path}}
-        - telescope = {{telescope}}
-        - det_names_file = {{det_names_file}}
-        - nside = {{nside}}
-        - isim = {{isim}}
-        - mission_time_days = {{mission_time_days}}
-        - mapmaking_type = {{mapmaking_type}}
+[General]
 
-        [Simulation]
-        - base_path = {{base_path}}
-        - start_time = {{start_time}}
-        - duration_s = {{duration_s}}
+- imo_version = {{imo_version}}
+- input_maps_path = {{input_maps_path}}
+- telescope = {{telescope}}
+- det_names_file = {{det_names_file}}
+- nside = {{nside}}
+- isim = {{isim}}
+- mission_time_days = {{mission_time_days}}
+- mapmaking_type = {{mapmaking_type}}
 
-        And here is a figure:
+[Simulation]
 
-        ![](myfigure.png)
-        """,
-            figures=[(fig, "myfigure.png")],
-            foo=123,
+- base_path = {{base_path}}
+- start_time = {{start_time}}
+- duration_s = {{duration_s}}
+
+## Detector list
+
+Detectors used in the simulation:
+
+{% for detname in detnames %}
+ {{ detname }}
+{% endfor %}
+
+""",
+            imo_version       = imo_version,
+            input_maps_path   = input_maps_path,
+            telescope         = telescope,
+            det_names_file    = det_names_file,
+            nside             = nside,
+            isim              = isim,
+            mission_time_days = mission_time_days,
+            mapmaking_type    = mapmaking_type,
+            base_path         = base_path,
+            duration_s        = duration_s,
+            start_time        = start_time,
+            detnames          = detnames
         )
         sim.flush()
+
         print("Done")
