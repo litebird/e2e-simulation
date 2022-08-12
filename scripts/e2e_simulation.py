@@ -48,7 +48,6 @@ def e2e_sim_production(toml_filename):
                          )
 
     #extract useful parameters
-    base_path         =     sim.parameters["simulation"]["base_path"]
     imo_version       =     sim.parameters["general"]["imo_version"]
     input_maps_path   =     sim.parameters["general"]["input_maps_path"]
     telescope         =     sim.parameters["general"]["telescope"]
@@ -57,6 +56,50 @@ def e2e_sim_production(toml_filename):
     isim              = int(sim.parameters["general"]["isim"])
     mission_time_days =     sim.parameters["general"]["mission_time_days"]
     mapmaking_type    =     sim.parameters["general"]["mapmaking_type"]
+
+    base_path         =     sim.parameters["simulation"]["base_path"]
+    duration_s        =     sim.parameters["simulation"]["duration_s"]
+    start_time        =     sim.parameters["simulation"]["start_time"]
+
+
+    if(rank==0):
+        # Create report
+        sim.append_to_report("""
+
+        ## Used parameters
+
+        [General]
+        - imo_version = {{imo_version}}
+        - input_maps_path = {{input_maps_path}}
+        - telescope = {{telescope}}
+        - det_names_file = {{det_names_file}}
+        - nside = {{nside}}
+        - isim = {{isim}}
+        - mission_time_days = {{mission_time_days}}
+        - mapmaking_type = {{mapmaking_type}}
+
+        [Simulation]
+        - base_path = {{base_path}}
+        - start_time = {{start_time}}
+        - duration_s = {{duration_s}}
+
+        """,
+            imo_version       = imo_version,
+            input_maps_path   = input_maps_path,
+            telescope         = telescope,
+            det_names_file    = det_names_file,
+            nside             = nside,
+            isim              = isim,
+            mission_time_days = mission_time_days,
+            mapmaking_type    = mapmaking_type,
+            base_path         = base_path,
+            duration_s        = duration_s,
+            start_time        = start_time
+
+        )
+        sim.flush()
+    sys.exit()
+
 
     #read channel, noise and detector names
     det_names_file_path = os.path.dirname(os.getcwd())+"/ancillary/"+det_names_file+".txt"
@@ -355,147 +398,32 @@ def e2e_sim_production(toml_filename):
     comm.barrier()
 
     if(rank==0):
+        # Create report
+        sim.append_to_report("""
+
+        ## Used parameters
+
+        [General]
+        - imo_version = {{imo_version}}
+        - input_maps_path = {{input_maps_path}}
+        - telescope = {{telescope}}
+        - det_names_file = {{det_names_file}}
+        - nside = {{nside}}
+        - isim = {{isim}}
+        - mission_time_days = {{mission_time_days}}
+        - mapmaking_type = {{mapmaking_type}}
+
+        [Simulation]
+        - base_path = {{base_path}}
+        - start_time = {{start_time}}
+        - duration_s = {{duration_s}}
+
+        And here is a figure:
+
+        ![](myfigure.png)
+        """,
+            figures=[(fig, "myfigure.png")],
+            foo=123,
+        )
         sim.flush()
         print("Done")
-
-
-
-# OTHER STUFF
-
-# def read_all_obs(telescope, detname_T, nside, mission_time_days, T_and_B, base_path):
-#     """
-#     This function reads and returns the observations for cmb,fg w/o band integration, fg w/ band integration,
-#     white noise, white+1/f noise, linear dipole and complete dipole, saved in separated hdf5 files. 
-#     telescope: telescope name (string) e.g. 'LFT';
-#     detname_T: list of (Top) detector names (returned from read_channel_detname_noise);
-#     nside: the nside for the CMB and FG maps generated;
-#     mission_time_days: days of observations;
-#     T_and_B: True (if you want to include both Top&Bottom detectors between ni_det and nf_det) or False (if you want to include just Top detector);
-#     base_path: path where you want to save the maps and observations generated 
-#     """
-#     base_path += "/sim_ns"+str(nside)+'_'+telescope
-#     ndet = np.size(detname_T)
-#     if T_and_B:
-#         if ndet == 1:
-#             obs_path = base_path+'/det_'+detname_T[0][:-1]+'T+B_'+str(mission_time_days)+'d'
-#         else:
-#             obs_path = base_path+"/dets_"+'_'.join([d[:-1]+'T+B_' for d in detname_T])+'_'+str(mission_time_days)+'d'
-#     else:
-#         if ndet == 1:
-#             obs_path = base_path+'/det_'+detname_T[0]+'_'+str(mission_time_days)+'d'
-#         else:
-#             obs_path = base_path+"/dets_"+'_'.join([d for d in detname_T])+'_'+str(mission_time_days)+'d'
-#     print('obs. path:', obs_path)
-#    
-#     obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT=lbs.io.read_list_of_observations(file_name_list = [
-#                                             obs_path+"/obs_cmb.hdf5",obs_path+"/obs_fg.hdf5",
-#                                             obs_path+"/obs_fg_int.hdf5",obs_path+"/obs_w_noise.hdf5",
-#                                             obs_path+"/obs_1_over_f_noise.hdf5",obs_path+"/obs_dip_linear.hdf5",
-#                                             obs_path+"/obs_dip_total_from_lin_T.hdf5",])  
-#
-#
-#     return obs_cmb,obs_fg,obs_fg_int,obs_w_noise,obs_1_f_noise,obs_dip_lin,obs_dip_tot_linT
-
-
-
-# def build_map(obs, pointings, psi, detname_T, nside):
-#     """
-#     This function generates a map out of the observation including a specific timeline (cmb, noise, fg...). 
-#     obs: one of the observations returned from read_all_obs, containing the timeline from which you want to generate a map;
-#     pointings: it can be get from obs_cmb.pointings;
-#     psi: it can be get from obs_cmb.psi;
-#     detname_T: list of (Top) detector names (returned from read_channel_detname_noise);
-#     nside: the nside of the map you want to generate;
-#     """
-#     ndet = np.size(detname_T)
-#     try: 
-#         obs.__getattribute__("psi")
-#     except:
-#         obs.psi = psi
-#
-#     obs.pixind = np.empty_like(obs.tod, dtype=np.int)
-#     for i_det in range(ndet):
-#         obs.pixind[i_det] = hp.ang2pix(nside, pointings[i_det, :, 0], pointings[i_det, :, 1]) 
-#
-#     m = lbs.make_bin_map([obs],nside,pointings=pointings)
-#
-#     return m
-
-
-
-#code for simulating maps that are scanned (instead of loading them):
-    # #loading channel info
-    # ch_info = []
-    # ch_names = ''
-    # file_list = os.listdir(base_path)
-    # for i_det in range(ndet):
-    #     if channel[i_det] != channel[i_det-1] or i_det == 0:
-    #         ch_info.append(lbs.FreqChannelInfo.from_imo(url="/releases/v1.3/satellite/"
-    #                                        +telescope+"/"+channel[i_det]+"/channel_info",imo=imo))
-    #         ch_names += '_'+channel[i_det]
-    #         m_files = [fn for fn in file_list if str(channel[i_det]) in fn]
-    #
-    # #create CMB, foregrounds and band-integrated foregrounds maps + fill their TODs
-    # M_cmb     = [True,False,False]
-    # M_fg      = [False,True,True]
-    # M_bandint = [False,False,True]
-    # obs       = [obs_cmb,obs_fg,obs_fg_bandint]
-    # map_type  = ['cmb','fg','fg_int']
-    #
-    # for i_m in range(len(M_cmb)):
-    #     map_path = base_path+'/'+map_type[i_m]+'_channels'+ch_names+'.pickle'
-    #     m_file = [fn for fn in m_files if map_type[i_m]+'_channels' in fn] #are there maps for all of my channels?
-    #
-    #     if(rank==0):
-    #         print('existing maps:', m_file, 'desired map', map_path)
-    #
-    #     if m_file == []:   #if there are not existing maps for all of my channels (or more), I generate them
-    #         #this sets the parameters for the generation of the map
-    #         Mbsparams = lbs.MbsParameters(
-    #             make_cmb  = M_cmb[i_m],
-    #             make_fg   = M_fg[i_m],
-    #             seed_cmb  = 1,
-    #             fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"], #set the FG models you want
-    #             gaussian_smooth = True,        #if True, smooths the input map by the beam of the channel
-    #             bandpass_int = M_bandint[i_m], #if True, integrates over the top-hat bandpass of the channel
-    #             nside = nside,
-    #             units = "K_CMB",
-    #             maps_in_ecliptic = True,   #maps saved in ecliptic, because of dipole 
-    #             )
-    #
-    #         mbs = lbs.Mbs(simulation = sim,
-    #             parameters = Mbsparams,
-    #             channel_list = ch_info,
-    #             #detector_list = dets   #use detector_list instead of channel_list if your sim has detectors 
-    #                                     #from different channels. It would produce a map for each detector in dets
-    #             )
-    #
-    #         #generate the map as a dictionary
-    #         maps = mbs.run_all()[0]
-    #
-    #         with open(map_path, 'wb') as f:
-    #             pickle.dump(maps, f)
-    #
-    #         if(rank==0):
-    #             t_map = time.time()
-    #             if i_m == 0:
-    #                 print('time for creating map: ', t_map-t_point)
-    #             else:
-    #                 print('time for creating map: ', t_map-t_tod)
-    #
-    #     else:   
-    #         with open(base_path+'/'+m_file[0],'rb') as f:  #read the existing map
-    #             read_map = pickle.load(f)
-    #         if os.path.isfile(map_path):  #if the existing map includes exactly all my channels and nothing more, I just read it
-    #             maps = read_map
-    #         else:  #if the esisting map has more than the needed channels, I create a new dictionary with only my channels
-    #             maps = {k: read_map[k] for k in read_map.keys() if k in channel}
-    #
-    #         if(rank==0):
-    #             print('channels of our map dict.:', maps.keys())
-    #         if(rank==0):
-    #             t_map = time.time()
-    #             if i_m == 0:
-    #                 print('time for reading map: ', t_map-t_point)
-    #             else:
-    #                 print('time for reading map: ', t_map-t_tod)

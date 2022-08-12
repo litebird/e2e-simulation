@@ -17,10 +17,10 @@ mapmaking_type = 'binned' #binned, destriper or all
 imo_version    = 'v1.3'
 
 #paths
-coderoot        =  #COMPLETE HERE   #folder where e2e_simulation.py is stored
-base_path       =  #COMPLETE HERE   #folder where you want to save the output files
+coderoot        = #COMPLETE HERE   #folder where e2e_simulation.py is stored
+base_path       = #COMPLETE HERE   #folder where you want to save the output files
 input_maps_path = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
-user_email      =  #COMPLETE HERE   #your email for notification
+user_email      = #COMPLETE HERE   #your email for notification
 
 
 
