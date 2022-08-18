@@ -1,11 +1,28 @@
 import litebird_sim as lbs
 import numpy as np
 import healpy as hp
-import time
+import matplotlib.pylab as plt
+from jinja2 import Environment #for multiple figures in the report
 from astropy.time import Time
-import os
+import time
 import pathlib
+import os
 import sys
+
+def save_map(m,title,base_path,save_filename):
+    '''
+    This function saves the mollview of the map m as a png figure and returns a tuple used to
+    insert the image in the report.
+
+    m: map to be plotted;
+    title: string, shown in the title of the figure;
+    base_path: string, same parameter of e2e_sim_production;
+    save_filename: string, name of the output file, e.g. 'my_figure.png'
+    '''
+    fig = plt.figure()
+    hp.mollview(m,title=title)
+    plt.savefig(base_path+save_filename)
+    return (fig,save_filename)
 
 def e2e_sim_production(toml_filename):
     '''
@@ -14,21 +31,23 @@ def e2e_sim_production(toml_filename):
     white noise, white+1/f noise, linear dipole, complete dipole) to be saved in separated hdf5 files. 
     The time employed for each step is printed.
 
-    toml_filename: name of the TOML file where the following parameters are specified:
-        telescope: telescope name (string) e.g. 'LFT';
-        det_names_file: file containing detector names, each one associated with its channel and noise NET.
+    toml_filename: string, name of the TOML file where the following parameters are specified:
+        imo_version: string, version of the IMO, e.g. 'v1.3';
+        input_maps_path: string, locaton of the input maps to be scanned;
+        telescope: string, telescope name (string) e.g. 'LFT';
+        det_names_file: string, file containing detector names, each one associated with its channel and noise NET.
                         Only and all detectors in this file will be used, e.g. to consider only top
                         detectors you should produce a file only with those detectors. This string is
-                        also used for save file names;
-        channels: list of channels (returned from read_channel_detname_noise)
-                  IMPORTANT: this script should be run with only 1 channel;
-        detnames: list of detector names (returned from read_channel_detname_noise);
-        noises: list of rescaled noise (returned from read_channel_detname_noise);
-        nside: the nside for the CMB and FG maps generated;
-        mission_time_days: days of observations;
-        isim: simulation number;
-        base_path: path where you want to save the maps and observations generated;
-        mapmaking_type: binned, destriper or all
+                        also used for save file names.
+                        IMPORTANT: this script should be run with only 1 channel;
+        nside: int, the resolution of the maps;
+        isim: int, simulation number;
+        mission_time_days: string, days of observation AND number of processors used, each handling 1 observation day;
+        mapmaking_type: string, type of mapmaking, 'binned', 'destriper' or 'all';
+        name: string, name of the simulation;
+        base_path: string, path where you want to save the maps and observations generated;
+        start_time: string, start time of the simulation, e.g. '2030-04-01T00:00:00';
+        duration_s: string, days of observation, e.g. '365 days' (same as mission_time_days but recognized by lbs.Simulation)
     '''
 
     #for parallelization; each rank handles 1 day of observation
@@ -60,6 +79,10 @@ def e2e_sim_production(toml_filename):
     base_path         =     sim.parameters["simulation"]["base_path"]
     duration_s        =     sim.parameters["simulation"]["duration_s"]
     start_time        =     sim.parameters["simulation"]["start_time"]
+
+    #check mapmaking type
+    if(mapmaking_type not in ['binned','destriper','all']):
+        raise ValueError("Wrong mapmaking type")
 
     #read channel, noise and detector names
     det_names_file_path = os.path.dirname(os.getcwd())+"/ancillary/"+det_names_file+".txt"
@@ -264,7 +287,7 @@ def e2e_sim_production(toml_filename):
             print('time for dipole construction: ', t_dip-t_tod)
 
         #create save path for observation
-        obs_path = base_path+'TOD_'+det_names_file
+        obs_path = base_path+'TOD/'
         if(rank==0):
             #this has to be done by rank 0 to avoid conflicts        
             if not os.path.exists(obs_path):
@@ -290,11 +313,11 @@ def e2e_sim_production(toml_filename):
                                           )
 
         if(rank==0):
-            t_save = time.time()
-            print('time for saving tods: ', t_save-t_dip)
+            t_save_tod = time.time()
+            print('time for saving tods: ', t_save_tod-t_dip)
 
     #create save path for output maps
-    map_path = base_path+'maps_'+det_names_file+'/'
+    map_path = base_path+'maps/'
     if(rank==0):
         if not os.path.exists(map_path):
             os.mkdir(map_path)
@@ -340,14 +363,14 @@ def e2e_sim_production(toml_filename):
 
     #build the output maps with a destriper
     if(mapmaking_type=='destriper' or mapmaking_type=='all'):
-        if(rank==0):#MBNR rank 0 for test
+        if(rank==0):
             for i in range(len(obs_list_mapmaking)):
                 param_noise_madam = lbs.DestriperParameters(nside=nside,
                                                             nnz=3, #compute I, Q, and U
                                                             baseline_length_s=60,
                                                             return_hit_map=False,
-                                                            return_binned_map=False,
-                                                            return_destriped_map=False,
+                                                            return_binned_map=True,
+                                                            return_destriped_map=True,
                                                             coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
                                                             #iter_max=10, #defaul is 100
                                                             output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
@@ -360,18 +383,26 @@ def e2e_sim_production(toml_filename):
 
     comm.barrier()
 
+    if(rank==0):
+        t_save_maps = time.time()
+        if(isim==0):
+            print('time for saving tods: ', t_save_maps-t_save_tod)
+        else:
+            print('time for saving tods: ', t_save_maps-t_tod)
+
     # Create report
     if(rank==0):
+        #Used parameters
         sim.append_to_report("""
 
-## Used parameters
+## Run parameters
 
 [General]
 
 - imo_version = {{imo_version}}
-- input_maps_path = {{input_maps_path}}
+- input_maps_path = `{{input_maps_path}}`
 - telescope = {{telescope}}
-- det_names_file = {{det_names_file}}
+- det_names_file = `{{det_names_file}}`
 - nside = {{nside}}
 - isim = {{isim}}
 - mission_time_days = {{mission_time_days}}
@@ -379,32 +410,108 @@ def e2e_sim_production(toml_filename):
 
 [Simulation]
 
-- base_path = {{base_path}}
+- base_path = `{{base_path}}`
 - start_time = {{start_time}}
 - duration_s = {{duration_s}}
+""",
+        imo_version       = imo_version,
+        input_maps_path   = input_maps_path,
+        telescope         = telescope,
+        det_names_file    = det_names_file,
+        nside             = nside,
+        isim              = isim,
+        mission_time_days = mission_time_days,
+        mapmaking_type    = mapmaking_type,
+        base_path         = base_path,
+        duration_s        = duration_s,
+        start_time        = start_time
+        )
 
+        #Output maps
+        figures = []
+
+        if(mapmaking_type=='binned' or mapmaking_type=='all'):
+            #maps produced by binned mapmaker
+            figures.append(save_map(map_output[0],
+                                    title='binned T map from binned mapmaker',
+                                    base_path=base_path,
+                                    save_filename='binned_T_map.png'
+                                    ))
+            figures.append(save_map(map_output[1],
+                                    title='binned Q map from binned mapmaker',
+                                    base_path=base_path,
+                                    save_filename='binned_Q_map.png'
+                                    ))
+            figures.append(save_map(map_output[2],
+                                    title='binned U map from binned mapmaker',
+                                    base_path=base_path,
+                                    save_filename='binned_U_map.png'
+                                    ))
+
+        if(mapmaking_type=='destriper' or mapmaking_type=='all'):
+            #binned maps produced by destriper mapmaker
+            figures.append(save_map(result.binned_map[0],
+                                    title='binned T map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_binned_T_map.png'
+                                    ))
+            figures.append(save_map(result.binned_map[1],
+                                    title='binned Q map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_binned_Q_map.png'
+                                    ))
+            figures.append(save_map(result.binned_map[2],
+                                    title='binned U map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_binned_U_map.png'
+                                    ))
+            #destriped maps produced by destriper mapmaker
+            figures.append(save_map(result.destriped_map[0],
+                                    title='destriped T map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_destriped_T_map.png'
+                                    ))
+            figures.append(save_map(result.destriped_map[1],
+                                    title='destriped Q map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_destriped_Q_map.png'
+                                    ))
+            figures.append(save_map(result.destriped_map[2],
+                                    title='destriped U map from destriper mapmaker',
+                                    base_path=base_path,
+                                    save_filename='destriper_destriped_U_map.png'
+                                    ))
+
+        #loop over list of tuples
+        TEMPLATE = """
+## Output maps
+
+Produced output maps:
+
+{% for figure in figures %}
+ ![]({{ figure[1] }})
+{% endfor %}
+"""
+        template = Environment().from_string(TEMPLATE)
+        sim.append_to_report(template.render(figures=figures))
+
+        #Detector list
+        sim.append_to_report("""
 ## Detector list
 
 Detectors used in the simulation:
 
 {% for detname in detnames %}
- {{ detname }}
+ `{{ detname }}`
 {% endfor %}
 
 """,
-            imo_version       = imo_version,
-            input_maps_path   = input_maps_path,
-            telescope         = telescope,
-            det_names_file    = det_names_file,
-            nside             = nside,
-            isim              = isim,
-            mission_time_days = mission_time_days,
-            mapmaking_type    = mapmaking_type,
-            base_path         = base_path,
-            duration_s        = duration_s,
-            start_time        = start_time,
-            detnames          = detnames
+        detnames = detnames,
         )
+
         sim.flush()
+
+        t_report = time.time()
+        print('time for report: ', t_report-t_save_maps)
 
         print("Done")
