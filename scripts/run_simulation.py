@@ -63,7 +63,7 @@ export OMP_PROC_BIND=spread
 export OMP_PLACES=threads
 export OMP_NUM_THREADS=2
 
-srun python -c "from e2e_simulation import e2e_sim_production;
+srun --cpu-bind=cores python -c "from e2e_simulation import e2e_sim_production;
 
 e2e_sim_production('{toml_filename}')"
 
