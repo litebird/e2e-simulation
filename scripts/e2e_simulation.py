@@ -287,7 +287,7 @@ def e2e_sim_production(toml_filename):
             print('time for dipole construction: ', t_dip-t_tod)
 
         #create save path for observation
-        obs_path = base_path+'TOD/'
+        obs_path = base_path+'tods/'
         if(rank==0):
             #this has to be done by rank 0 to avoid conflicts        
             if not os.path.exists(obs_path):
@@ -297,17 +297,17 @@ def e2e_sim_production(toml_filename):
         obs=obs+obs_noise+[obs_dip]
 
         custom_dicts = [
-                { "myvalue": "cmb_day"+str(rank).zfill(4) }, #obs_cmb will also have the pointing saved
-                { "myvalue": "fg_day"+str(rank).zfill(4) },
-                { "myvalue": "w_noise_day"+str(rank).zfill(4) },
-                { "myvalue": "1_over_f_noise_pessimistic_day"+str(rank).zfill(4) },
-                { "myvalue": "1_over_f_noise_realistic_day"+str(rank).zfill(4) },
-                { "myvalue": "dipole_total_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_cmb_day"+str(rank).zfill(4) }, #obs_cmb will also have the pointing saved
+                { "myvalue": telescope+"_"+channels[0]+"_obs_fg_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_w_noise_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_pessimistic_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_realistic_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_dipole_total_day"+str(rank).zfill(4) },
             ]
 
         lbs.io.write_list_of_observations(obs=obs,
                                           path=obs_path,
-                                          file_name_mask="obs_{myvalue}.hdf5",
+                                          file_name_mask="{myvalue}.hdf5",
                                           custom_placeholders=custom_dicts,
                                           collective_mpi_call=True,
                                           )
@@ -353,31 +353,48 @@ def e2e_sim_production(toml_filename):
                                                       )
             #save binned maps
             if(rank==0):
-                hp.write_map(map_path+'map_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.fits',
+                hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.fits',
                              map_output,
                              overwrite=True
                              )
-                np.save(map_path+'cov_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.npy',
+                np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.npy',
                         cov_output
                         )
+            #save outputs for madam mapmaker
+            #param_noise_madam = lbs.DestriperParameters(nside=nside,
+            #                                            nnz=3, #compute I, Q, and U
+            #                                            baseline_length_s=60,
+            #                                            return_hit_map=False,
+            #                                            return_binned_map=True,
+            #                                            return_destriped_map=True,
+            #                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+            #                                            #iter_max=100, #default is 100
+            #                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
+            #                                            )
+            #lbs.madam.save_simulation_for_madam(sim=sim,
+            #                                    detectors=dets,
+            #                                    params=param_noise_madam,
+            #                                    use_gzip=False,
+            #                                    output_path= base_path+'madam/',
+            #                                    absolute_paths=True)
 
     #build the output maps with a destriper
     if(mapmaking_type=='destriper' or mapmaking_type=='all'):
         if(rank==0):
             for i in range(len(obs_list_mapmaking)):
-                param_noise_madam = lbs.DestriperParameters(nside=nside,
-                                                            nnz=3, #compute I, Q, and U
-                                                            baseline_length_s=60,
-                                                            return_hit_map=False,
-                                                            return_binned_map=True,
-                                                            return_destriped_map=True,
-                                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
-                                                            #iter_max=10, #defaul is 100
-                                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
-                                                            )
+                param_noise_destriper = lbs.DestriperParameters(nside=nside,
+                                                                nnz=3, #compute I, Q, and U
+                                                                baseline_length_s=60,
+                                                                return_hit_map=False,
+                                                                return_binned_map=True,
+                                                                return_destriped_map=True,
+                                                                coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+                                                                #iter_max=100, #default is 100
+                                                                output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
+                                                                )
                 result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
                                                              base_path=pathlib.PosixPath(map_path),
-                                                             params=param_noise_madam,
+                                                             params=param_noise_destriper,
                                                              pointings=pointings_mapmaking[i]
                                                              )
 
