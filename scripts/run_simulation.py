@@ -6,13 +6,13 @@ import sys
 #python run_simulation.py 0 LFT L2-050
 
 #parameters
-isim           = sys.argv[1].zfill(3)
+isim           = sys.argv[1].zfill(4)
 telescope      = sys.argv[2] #e.g. 'LFT'
 channel        = sys.argv[3] #e.g. 'L2-050'
-det_names_file = 'detectors_'+telescope+'_'+channel+'_T+B'#'detectors_HFT_H3-402_T+B'#.txt
+det_names_file = 'detectors_'+telescope+'_'+channel+'_T+B'
 nside          = 512
 start_time     = '2030-04-01T00:00:00'
-nproc          = 1#365    #number of simulation days, too
+nproc          = 365    #number of simulation days, too
 mapmaking_type = 'binned' #binned, destriper or all
 imo_version    = 'v1.3'
 name           = 'sim'+isim+'_'+det_names_file
@@ -48,7 +48,7 @@ with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
 slurm_e2e = coderoot+"slurm_e2e_sim"+isim+".sl"
 
 slurm = """#!/bin/bash -l
-#SBATCH -N 1 #COMPLETE HERE
+#SBATCH -N 37 #COMPLETE HERE
 #SBATCH -n {nproc}
 #SBATCH -c 2 #COMPLETE HERE
 #SBATCH -C haswell

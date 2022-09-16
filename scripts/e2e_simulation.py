@@ -322,81 +322,138 @@ def e2e_sim_production(toml_filename):
         if not os.path.exists(map_path):
             os.mkdir(map_path)
 
-    comm.barrier()
-
-    obs_list_mapmaking  = [[obs_cmb,obs_fg,obs_noise_w],                 #cmb, foregrounds and white noise #MBNR we do not need to destripe here, right?
-                           [obs_cmb,obs_fg,obs_noise_w_1_f_pessimistic], #cmb, foregrounds and 1/f noise (containing also white noise) in the pessimistic case
-                           [obs_noise_w_1_f_pessimistic],                #1/f noise (containing also white noise) in the pessimistic case
-                           [obs_cmb,obs_fg,obs_noise_w_1_f_realistic],   #cmb, foregrounds and 1/f noise (containing also white noise) in the realistic case
-                           [obs_noise_w_1_f_realistic]]                  #1/f noise (containing also white noise) in the realistic case
-    
-    pointings_mapmaking = [[pointings,pointings,pointings],              #MBNR: pointings_mapmaking needed? Probably no
-                           [pointings,pointings,pointings],
-                           [pointings],
-                           [pointings,pointings,pointings],
-                           [pointings]]
-    
-    filenames_mapmaking = ['cmb_fg_wn',
-                           'cmb_fg_1fpess',
-                           '1fpess',
-                           'cmb_fg_1frea',
-                           '1frea']
+    comm.barrier()    
 
     #build the output maps with a binned mapmaker
     if(mapmaking_type=='binned' or mapmaking_type=='all'):
-        for i in range(len(obs_list_mapmaking)):
-            map_output, cov_output = lbs.make_bin_map(obs_list_mapmaking[i],
-                                                      nside,
-                                                      pointings=pointings_mapmaking[i],
-                                                      do_covariance=True,
-                                                      output_map_in_galactic=True
-                                                      )
-            #save binned maps
-            if(rank==0):
-                hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.fits',
-                             map_output,
-                             overwrite=True
-                             )
-                np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_'+filenames_mapmaking[i]+'_'+mission_time_days+'d.npy',
-                        cov_output
-                        )
-            #save outputs for madam mapmaker
-            #param_noise_madam = lbs.DestriperParameters(nside=nside,
-            #                                            nnz=3, #compute I, Q, and U
-            #                                            baseline_length_s=60,
-            #                                            return_hit_map=False,
-            #                                            return_binned_map=True,
-            #                                            return_destriped_map=True,
-            #                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
-            #                                            #iter_max=100, #default is 100
-            #                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
-            #                                            )
-            #lbs.madam.save_simulation_for_madam(sim=sim,
-            #                                    detectors=dets,
-            #                                    params=param_noise_madam,
-            #                                    use_gzip=False,
-            #                                    output_path= base_path+'madam/',
-            #                                    absolute_paths=True)
-
-    #build the output maps with a destriper
-    if(mapmaking_type=='destriper' or mapmaking_type=='all'):
+        
+        ##### (1) cmb, foregrounds and white noise #####
+        #add fg and wn to cmb TODs (element wise)
+        obs_cmb.tod += (obs_fg.tod+obs_noise_w.tod)
+        #produce map and cov
+        map_output, cov_output = lbs.make_bin_map(obs_cmb,
+                                                  nside,
+                                                  pointings=pointings,
+                                                  do_covariance=True,
+                                                  output_map_in_galactic=True
+                                                  )
+        #save binned maps
         if(rank==0):
-            for i in range(len(obs_list_mapmaking)):
-                param_noise_destriper = lbs.DestriperParameters(nside=nside,
-                                                                nnz=3, #compute I, Q, and U
-                                                                baseline_length_s=60,
-                                                                return_hit_map=False,
-                                                                return_binned_map=True,
-                                                                return_destriped_map=True,
-                                                                coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
-                                                                #iter_max=100, #default is 100
-                                                                output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
-                                                                )
-                result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
-                                                             base_path=pathlib.PosixPath(map_path),
-                                                             params=param_noise_destriper,
-                                                             pointings=pointings_mapmaking[i]
-                                                             )
+            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_wn_'+mission_time_days+'d.fits',
+                         map_output,
+                         overwrite=True
+                         )
+            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_wn_'+mission_time_days+'d.npy',
+                    cov_output
+                    )
+        #subtract fg and wn to cmb TODs (element wise)
+        obs_cmb.tod -= (obs_fg.tod+obs_noise_w.tod)
+
+        ##### (2) cmb, foregrounds and 1/f noise (containing also white noise) in the pessimistic case #####
+        obs_cmb.tod += (obs_fg.tod+obs_noise_w_1_f_pessimistic.tod)
+        map_output, cov_output = lbs.make_bin_map(obs_cmb,
+                                                  nside,
+                                                  pointings=pointings,
+                                                  do_covariance=True,
+                                                  output_map_in_galactic=True
+                                                  )
+        if(rank==0):
+            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1fpess_'+mission_time_days+'d.fits',
+                         map_output,
+                         overwrite=True
+                         )
+            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1fpess_'+mission_time_days+'d.npy',
+                    cov_output
+                    )
+        obs_cmb.tod -= (obs_fg.tod+obs_noise_w_1_f_pessimistic.tod)
+
+        ##### (3) cmb, foregrounds and 1/f noise (containing also white noise) in the realistic case #####
+        obs_cmb.tod += (obs_fg.tod+obs_noise_w_1_f_realistic.tod)
+        map_output, cov_output = lbs.make_bin_map(obs_cmb,
+                                                  nside,
+                                                  pointings=pointings,
+                                                  do_covariance=True,
+                                                  output_map_in_galactic=True
+                                                  )
+        if(rank==0):
+            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1frea_'+mission_time_days+'d.fits',
+                         map_output,
+                         overwrite=True
+                         )
+            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1frea_'+mission_time_days+'d.npy',
+                    cov_output
+                    )
+        obs_cmb.tod -= (obs_fg.tod+obs_noise_w_1_f_realistic.tod)
+
+        ##### (4) 1/f noise (containing also white noise) in the pessimistic case #####
+        map_output, cov_output = lbs.make_bin_map(obs_noise_w_1_f_pessimistic,
+                                                  nside,
+                                                  pointings=pointings,
+                                                  do_covariance=True,
+                                                  output_map_in_galactic=True
+                                                  )
+        if(rank==0):
+            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1fpess_'+mission_time_days+'d.fits',
+                         map_output,
+                         overwrite=True
+                         )
+            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1fpess_'+mission_time_days+'d.npy',
+                    cov_output
+                    )
+
+        ##### (5) 1/f noise (containing also white noise) in the realistic case #####
+        map_output, cov_output = lbs.make_bin_map(obs_noise_w_1_f_realistic,
+                                                  nside,
+                                                  pointings=pointings,
+                                                  do_covariance=True,
+                                                  output_map_in_galactic=True
+                                                  )
+        if(rank==0):
+            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1frea_'+mission_time_days+'d.fits',
+                         map_output,
+                         overwrite=True
+                         )
+            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1frea_'+mission_time_days+'d.npy',
+                    cov_output
+                    )
+
+        #save outputs for madam mapmaker #MBNR to test
+        #param_noise_madam = lbs.DestriperParameters(nside=nside,
+        #                                            nnz=3, #compute I, Q, and U
+        #                                            baseline_length_s=60,
+        #                                            return_hit_map=False,
+        #                                            return_binned_map=True,
+        #                                            return_destriped_map=True,
+        #                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+        #                                            #iter_max=100, #default is 100
+        #                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
+        #                                            )
+        #lbs.madam.save_simulation_for_madam(sim=sim,
+        #                                    detectors=dets,
+        #                                    params=param_noise_madam,
+        #                                    use_gzip=False,
+        #                                    output_path= base_path+'madam/',
+        #                                    absolute_paths=True)
+
+    #build the output maps with a destriper #MBNR: to complete
+    #if(mapmaking_type=='destriper' or mapmaking_type=='all'):
+    #    if(rank==0):
+    #        for i in range(len(obs_list_mapmaking)):
+    #            param_noise_destriper = lbs.DestriperParameters(nside=nside,
+    #                                                            nnz=3, #compute I, Q, and U
+    #                                                            baseline_length_s=60,
+    #                                                            return_hit_map=False,
+    #                                                            return_binned_map=True,
+    #                                                            return_destriped_map=True,
+    #                                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+    #                                                            #iter_max=100, #default is 100
+    #                                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
+    #                                                            )
+    #            result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
+    #                                                         base_path=pathlib.PosixPath(map_path),
+    #                                                         params=param_noise_destriper,
+    #                                                         pointings=pointings#pointings_mapmaking[i]
+    #                                                         )
 
     comm.barrier()
 
