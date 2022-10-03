@@ -250,7 +250,7 @@ def e2e_sim_production(toml_filename):
         lbs.scan_map_in_observations(obs[i_m],
                                      maps,
                                      pointings, #not needed if pointing already stored in obs
-                                     input_map_in_galactic=False,
+                                     input_map_in_galactic=True
                                      )
 
     if(rank==0):
