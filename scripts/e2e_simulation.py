@@ -297,12 +297,12 @@ def e2e_sim_production(toml_filename):
         obs=obs+obs_noise+[obs_dip]
 
         custom_dicts = [
-                { "myvalue": telescope+"_"+channels[0]+"_obs_cmb_day"+str(rank).zfill(4) }, #obs_cmb will also have the pointing saved
-                { "myvalue": telescope+"_"+channels[0]+"_obs_fg_day"+str(rank).zfill(4) },
-                { "myvalue": telescope+"_"+channels[0]+"_obs_w_noise_day"+str(rank).zfill(4) },
-                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_pessimistic_day"+str(rank).zfill(4) },
-                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_realistic_day"+str(rank).zfill(4) },
-                { "myvalue": telescope+"_"+channels[0]+"_obs_dipole_total_day"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_cmb_rank"+str(rank).zfill(4) }, #obs_cmb will also have the pointing saved
+                { "myvalue": telescope+"_"+channels[0]+"_obs_fg_rank"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_w_noise_rank"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_pessimistic_rank"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_1_over_f_noise_realistic_rank"+str(rank).zfill(4) },
+                { "myvalue": telescope+"_"+channels[0]+"_obs_dipole_total_rank"+str(rank).zfill(4) },
             ]
 
         lbs.io.write_list_of_observations(obs=obs,
