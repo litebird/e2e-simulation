@@ -2,14 +2,13 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 import matplotlib.pylab as plt
-from jinja2 import Environment #for multiple figures in the report
 from astropy.time import Time
 import time
 import pathlib
 import os
 import sys
 
-def save_map(m,title,base_path,save_filename):
+def plot_map(m,title,save_filename):
     '''
     This function saves the mollview of the map m as a png figure and returns a tuple used to
     insert the image in the report.
@@ -19,10 +18,41 @@ def save_map(m,title,base_path,save_filename):
     base_path: string, same parameter of e2e_sim_production;
     save_filename: string, name of the output file, e.g. 'my_figure.png'
     '''
+
     fig = plt.figure()
-    hp.mollview(m,title=title)
-    plt.savefig(base_path+save_filename)
-    return (fig,save_filename)
+    hp.mollview(m,title=title,fig=fig)
+    return (fig, save_filename)
+
+def save_append_maps(map_path,map_name,map_output,cov_output,figures):
+    '''
+    This function saves a set of T,Q,U maps (.fits), its covariance (.npy) and
+    updates the figures list with its mollweide projection.
+
+    map_path: path where to save maps, i.e. base_path+'maps/';
+    map_name: name of the map, i.e. case under study;
+    map_output: map to be saved;
+    cov_output: cov to be saved;
+    figures: list with tuples of (fig, save_filename) that has to be updated
+
+    returns: updated figures list
+    '''
+    
+    #save maps
+    hp.write_map(map_path+'map_'+map_name+'.fits',
+                 map_output,
+                 overwrite=True)
+
+    #save cov
+    np.save(map_path+'cov_'+map_name+'.npy',
+            cov_output)
+
+    #update figures list
+    fields = ['T','Q','U']
+    for i in range(3):
+        figures.append(plot_map(map_output[i],
+                                title=map_name+' - '+fields[i],
+                                save_filename=map_name+'_'+fields[i]+'.png'))
+    return figures
 
 def e2e_sim_production(toml_filename):
     '''
@@ -63,8 +93,7 @@ def e2e_sim_production(toml_filename):
 
     #initializing the simulation
     sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
-                         mpi_comm=comm
-                         )
+                         mpi_comm=comm)
 
     #extract useful parameters
     imo_version       =     sim.parameters["general"]["imo_version"]
@@ -88,8 +117,7 @@ def e2e_sim_production(toml_filename):
     det_names_file_path = os.path.dirname(os.getcwd())+"/ancillary/"+det_names_file+".txt"
     det_file = np.genfromtxt(det_names_file_path,
                              skip_header=1,
-                             dtype=str
-                             )
+                             dtype=str)
 
     channels = det_file[:,1]
     noises   = det_file[:,4].astype(dtype=float)
@@ -110,8 +138,7 @@ def e2e_sim_production(toml_filename):
     inst = lbs.InstrumentInfo(name=telescope, 
                               boresight_rotangle_rad=np.deg2rad(inst_info.metadata["boresight_rotangle_deg"]),
                               spin_boresight_angle_rad=np.deg2rad(inst_info.metadata["spin_boresight_angle_deg"]),
-                              spin_rotangle_rad=np.deg2rad(inst_info.metadata["spin_rotangle_deg"])
-                              )
+                              spin_rotangle_rad=np.deg2rad(inst_info.metadata["spin_rotangle_deg"]))
     
     #filling dets with info and detquats with quaternions of the detectors in detlist
     dets = []
@@ -132,8 +159,7 @@ def e2e_sim_production(toml_filename):
     (obs_noise_w_1_f_pessimistic,) = sim.create_observations(detectors=dets,
                                                              n_blocks_det=1,
                                                              n_blocks_time=size,
-                                                             split_list_over_processes=False,
-                                                             )
+                                                             split_list_over_processes=False)
     # pessimistic: set knee frequency and noise specification
     obs_noise_w_1_f_pessimistic.fknee_mhz = 100
     obs_noise_w_1_f_pessimistic.net_ukrts = noises
@@ -147,8 +173,7 @@ def e2e_sim_production(toml_filename):
     (obs_noise_w_1_f_realistic,) = sim.create_observations(detectors=dets,
                                                            n_blocks_det=1,
                                                            n_blocks_time=size,
-                                                           split_list_over_processes=False,
-                                                           )
+                                                           split_list_over_processes=False)
     # realistic: set knee frequency and noise specification
     obs_noise_w_1_f_realistic.fknee_mhz = 30
     obs_noise_w_1_f_realistic.net_ukrts = noises
@@ -166,8 +191,7 @@ def e2e_sim_production(toml_filename):
     (obs_noise_w,) = sim.create_observations(detectors= dets,
                                              n_blocks_det = 1,
                                              n_blocks_time = size,
-                                             split_list_over_processes=False,
-                                             )
+                                             split_list_over_processes=False)
     obs_noise_w.net_ukrts = noises
     lbs.add_noise_to_observations([obs_noise_w],
                                   'white',
@@ -184,14 +208,12 @@ def e2e_sim_production(toml_filename):
     (obs_cmb,) = sim.create_observations(detectors=dets,
                                          n_blocks_det=1,
                                          n_blocks_time=size,
-                                         split_list_over_processes=False,
-                                         )
+                                         split_list_over_processes=False)
 
     (obs_fg,) = sim.create_observations(detectors=dets,
                                         n_blocks_det=1,
                                         n_blocks_time=size,
-                                        split_list_over_processes=False,
-                                        )
+                                        split_list_over_processes=False)
 
     if(rank==0):
         t_obs = time.time()
@@ -206,9 +228,8 @@ def e2e_sim_production(toml_filename):
                                             detector_quats = detquats,
                                             bore2spin_quat = inst.bore2spin_quat,
                                             hwp = lbs.IdealHWP(hwp_radpsec),   #applies hwp rotation angle to the polarization angle                                  
-                                            store_pointings_in_obs=True,       #if True, stores colatitude and longitude in obs_cmb.pointings,
+                                            store_pointings_in_obs=True)       #if True, stores colatitude and longitude in obs_cmb.pointings,
                                                                                #and the polarization angle in obs_cmb.psi
-                                            )
 
     if(rank==0):
         t_point = time.time()
@@ -250,8 +271,7 @@ def e2e_sim_production(toml_filename):
         lbs.scan_map_in_observations(obs[i_m],
                                      maps,
                                      pointings, #not needed if pointing already stored in obs
-                                     input_map_in_galactic=True
-                                     )
+                                     input_map_in_galactic=True)
 
     if(rank==0):
         t_tod = time.time()
@@ -265,22 +285,19 @@ def e2e_sim_production(toml_filename):
         (obs_dip,) = sim.create_observations(detectors=dets,
                                              n_blocks_det=1,
                                              n_blocks_time=size,
-                                             split_list_over_processes=False,
-                                             )
+                                             split_list_over_processes=False)
         orbit = lbs.SpacecraftOrbit(obs_dip.start_time)
 
         #spacecraft position and velocity
         pos_vel = lbs.spacecraft_pos_and_vel(orbit,
                                              obs_dip,
-                                             delta_time_s=86400.0
-                                             )
+                                             delta_time_s=86400.0)
 
         #add dipole to obs_dip; dipole type is TOTAL_FROM_LIN_T, read the doc for more info
         lbs.add_dipole_to_observations(obs=obs_dip,
                                        pos_and_vel=pos_vel,
                                        pointings=pointings,
-                                       dipole_type=lbs.DipoleType.TOTAL_FROM_LIN_T,
-                                       )
+                                       dipole_type=lbs.DipoleType.TOTAL_FROM_LIN_T)
 
         if(rank==0):
             t_dip = time.time()
@@ -309,8 +326,7 @@ def e2e_sim_production(toml_filename):
                                           path=obs_path,
                                           file_name_mask="{myvalue}.hdf5",
                                           custom_placeholders=custom_dicts,
-                                          collective_mpi_call=True,
-                                          )
+                                          collective_mpi_call=True)
 
         if(rank==0):
             t_save_tod = time.time()
@@ -325,8 +341,11 @@ def e2e_sim_production(toml_filename):
     comm.barrier()    
 
     #build the output maps with a binned mapmaker
+    if(rank==0):
+        figures = []
+
     if(mapmaking_type=='binned' or mapmaking_type=='all'):
-        
+
         ##### (1) cmb, foregrounds and white noise #####
         #add fg and wn to cmb TODs (element wise)
         obs_cmb.tod += (obs_fg.tod+obs_noise_w.tod)
@@ -335,54 +354,49 @@ def e2e_sim_production(toml_filename):
                                                   nside,
                                                   pointings=pointings,
                                                   do_covariance=True,
-                                                  output_map_in_galactic=True
-                                                  )
-        #save binned maps
+                                                  output_map_in_galactic=True)
+        #save binned maps and update figures list
         if(rank==0):
-            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_wn_'+mission_time_days+'d.fits',
-                         map_output,
-                         overwrite=True
-                         )
-            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_wn_'+mission_time_days+'d.npy',
-                    cov_output
-                    )
-        #subtract fg and wn to cmb TODs (element wise)
-        obs_cmb.tod -= (obs_fg.tod+obs_noise_w.tod)
+            map_name = telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_wn_'+mission_time_days+'d'
+            figures = save_append_maps(map_path,
+                                       map_name,
+                                       map_output,
+                                       cov_output,
+                                       figures)
+
+        #subtract wn to cmb TODs (element wise)
+        obs_cmb.tod -= obs_noise_w.tod
 
         ##### (2) cmb, foregrounds and 1/f noise (containing also white noise) in the pessimistic case #####
-        obs_cmb.tod += (obs_fg.tod+obs_noise_w_1_f_pessimistic.tod)
+        obs_cmb.tod += obs_noise_w_1_f_pessimistic.tod
         map_output, cov_output = lbs.make_bin_map(obs_cmb,
                                                   nside,
                                                   pointings=pointings,
                                                   do_covariance=True,
-                                                  output_map_in_galactic=True
-                                                  )
+                                                  output_map_in_galactic=True)
         if(rank==0):
-            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1fpess_'+mission_time_days+'d.fits',
-                         map_output,
-                         overwrite=True
-                         )
-            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1fpess_'+mission_time_days+'d.npy',
-                    cov_output
-                    )
-        obs_cmb.tod -= (obs_fg.tod+obs_noise_w_1_f_pessimistic.tod)
+            map_name = telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1fpess_'+mission_time_days+'d'
+            figures = save_append_maps(map_path,
+                                       map_name,
+                                       map_output,
+                                       cov_output,
+                                       figures)
+        obs_cmb.tod -= obs_noise_w_1_f_pessimistic.tod
 
         ##### (3) cmb, foregrounds and 1/f noise (containing also white noise) in the realistic case #####
-        obs_cmb.tod += (obs_fg.tod+obs_noise_w_1_f_realistic.tod)
+        obs_cmb.tod += obs_noise_w_1_f_realistic.tod
         map_output, cov_output = lbs.make_bin_map(obs_cmb,
                                                   nside,
                                                   pointings=pointings,
                                                   do_covariance=True,
-                                                  output_map_in_galactic=True
-                                                  )
+                                                  output_map_in_galactic=True)
         if(rank==0):
-            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1frea_'+mission_time_days+'d.fits',
-                         map_output,
-                         overwrite=True
-                         )
-            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1frea_'+mission_time_days+'d.npy',
-                    cov_output
-                    )
+            map_name = telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_cmb_fg_1frea_'+mission_time_days+'d'
+            figures = save_append_maps(map_path,
+                                       map_name,
+                                       map_output,
+                                       cov_output,
+                                       figures)
         obs_cmb.tod -= (obs_fg.tod+obs_noise_w_1_f_realistic.tod)
 
         ##### (4) 1/f noise (containing also white noise) in the pessimistic case #####
@@ -390,32 +404,28 @@ def e2e_sim_production(toml_filename):
                                                   nside,
                                                   pointings=pointings,
                                                   do_covariance=True,
-                                                  output_map_in_galactic=True
-                                                  )
+                                                  output_map_in_galactic=True)
         if(rank==0):
-            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1fpess_'+mission_time_days+'d.fits',
-                         map_output,
-                         overwrite=True
-                         )
-            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1fpess_'+mission_time_days+'d.npy',
-                    cov_output
-                    )
+            map_name = telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1fpess_'+mission_time_days+'d'
+            figures = save_append_maps(map_path,
+                                       map_name,
+                                       map_output,
+                                       cov_output,
+                                       figures)
 
         ##### (5) 1/f noise (containing also white noise) in the realistic case #####
         map_output, cov_output = lbs.make_bin_map(obs_noise_w_1_f_realistic,
                                                   nside,
                                                   pointings=pointings,
                                                   do_covariance=True,
-                                                  output_map_in_galactic=True
-                                                  )
+                                                  output_map_in_galactic=True)
         if(rank==0):
-            hp.write_map(map_path+'map_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1frea_'+mission_time_days+'d.fits',
-                         map_output,
-                         overwrite=True
-                         )
-            np.save(map_path+'cov_'+telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1frea_'+mission_time_days+'d.npy',
-                    cov_output
-                    )
+            map_name = telescope+'_'+channels[0]+'_sim'+str(isim).zfill(4)+'_binned_1frea_'+mission_time_days+'d'
+            figures = save_append_maps(map_path,
+                                       map_name,
+                                       map_output,
+                                       cov_output,
+                                       figures)
 
         #save outputs for madam mapmaker #MBNR to test
         #param_noise_madam = lbs.DestriperParameters(nside=nside,
@@ -426,8 +436,7 @@ def e2e_sim_production(toml_filename):
         #                                            return_destriped_map=True,
         #                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
         #                                            #iter_max=100, #default is 100
-        #                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
-        #                                            )
+        #                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_')
         #lbs.madam.save_simulation_for_madam(sim=sim,
         #                                    detectors=dets,
         #                                    params=param_noise_madam,
@@ -447,13 +456,38 @@ def e2e_sim_production(toml_filename):
     #                                                            return_destriped_map=True,
     #                                                            coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
     #                                                            #iter_max=100, #default is 100
-    #                                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_'
-    #                                                            )
+    #                                                            output_file_prefix='map_destriper_'+filenames_mapmaking[i]+'_'+mission_time_days+'d_')
     #            result = lbs.destriper.destripe_observations(observations=obs_list_mapmaking[i],
     #                                                         base_path=pathlib.PosixPath(map_path),
     #                                                         params=param_noise_destriper,
-    #                                                         pointings=pointings#pointings_mapmaking[i]
-    #                                                         )
+    #                                                         pointings=pointings#pointings_mapmaking[i])
+        #if(mapmaking_type=='destriper' or mapmaking_type=='all'):
+        #    #binned maps produced by destriper mapmaker
+        #    figures.append(plot_map(result.binned_map[0],
+        #                            title='binned T map from destriper mapmaker',
+        #                            save_filename='destriper_binned_T_map.png'
+        #                            ))
+        #    figures.append(plot_map(result.binned_map[1],
+        #                            title='binned Q map from destriper mapmaker',
+        #                            save_filename='destriper_binned_Q_map.png'
+        #                            ))
+        #    figures.append(plot_map(result.binned_map[2],
+        #                            title='binned U map from destriper mapmaker',
+        #                            save_filename='destriper_binned_U_map.png'
+        #                            ))
+        #    #destriped maps produced by destriper mapmaker
+        #    figures.append(plot_map(result.destriped_map[0],
+        #                            title='destriped T map from destriper mapmaker',
+        #                            save_filename='destriper_destriped_T_map.png'
+        #                            ))
+        #    figures.append(plot_map(result.destriped_map[1],
+        #                            title='destriped Q map from destriper mapmaker',
+        #                            save_filename='destriper_destriped_Q_map.png'
+        #                            ))
+        #    figures.append(plot_map(result.destriped_map[2],
+        #                            title='destriped U map from destriper mapmaker',
+        #                            save_filename='destriper_destriped_U_map.png'
+        #                            ))
 
     comm.barrier()
 
@@ -464,9 +498,7 @@ def e2e_sim_production(toml_filename):
         else:
             print('time for saving tods: ', t_save_maps-t_tod)
 
-    # Create report
-    if(rank==0):
-        #Used parameters
+        # Create report
         sim.append_to_report("""
 
 ## Run parameters
@@ -487,6 +519,22 @@ def e2e_sim_production(toml_filename):
 - base_path = `{{base_path}}`
 - start_time = {{start_time}}
 - duration_s = {{duration_s}}
+
+## Output maps
+
+Produced output maps:
+
+{% for figure in figs %}
+ ![]({{ figure[1] }})
+{% endfor %}
+
+## Detector list
+
+Detectors used in the simulation:
+
+{% for detname in detnames %}
+ `{{ detname }}`
+{% endfor %}
 """,
         imo_version       = imo_version,
         input_maps_path   = input_maps_path,
@@ -498,90 +546,10 @@ def e2e_sim_production(toml_filename):
         mapmaking_type    = mapmaking_type,
         base_path         = base_path,
         duration_s        = duration_s,
-        start_time        = start_time
-        )
-
-        #Output maps
-        figures = []
-
-        if(mapmaking_type=='binned' or mapmaking_type=='all'):
-            #maps produced by binned mapmaker
-            figures.append(save_map(map_output[0],
-                                    title='binned T map from binned mapmaker',
-                                    base_path=base_path,
-                                    save_filename='binned_T_map.png'
-                                    ))
-            figures.append(save_map(map_output[1],
-                                    title='binned Q map from binned mapmaker',
-                                    base_path=base_path,
-                                    save_filename='binned_Q_map.png'
-                                    ))
-            figures.append(save_map(map_output[2],
-                                    title='binned U map from binned mapmaker',
-                                    base_path=base_path,
-                                    save_filename='binned_U_map.png'
-                                    ))
-
-        if(mapmaking_type=='destriper' or mapmaking_type=='all'):
-            #binned maps produced by destriper mapmaker
-            figures.append(save_map(result.binned_map[0],
-                                    title='binned T map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_binned_T_map.png'
-                                    ))
-            figures.append(save_map(result.binned_map[1],
-                                    title='binned Q map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_binned_Q_map.png'
-                                    ))
-            figures.append(save_map(result.binned_map[2],
-                                    title='binned U map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_binned_U_map.png'
-                                    ))
-            #destriped maps produced by destriper mapmaker
-            figures.append(save_map(result.destriped_map[0],
-                                    title='destriped T map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_destriped_T_map.png'
-                                    ))
-            figures.append(save_map(result.destriped_map[1],
-                                    title='destriped Q map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_destriped_Q_map.png'
-                                    ))
-            figures.append(save_map(result.destriped_map[2],
-                                    title='destriped U map from destriper mapmaker',
-                                    base_path=base_path,
-                                    save_filename='destriper_destriped_U_map.png'
-                                    ))
-
-        #loop over list of tuples
-        TEMPLATE = """
-## Output maps
-
-Produced output maps:
-
-{% for figure in figures %}
- ![]({{ figure[1] }})
-{% endfor %}
-"""
-        template = Environment().from_string(TEMPLATE)
-        sim.append_to_report(template.render(figures=figures))
-
-        #Detector list
-        sim.append_to_report("""
-## Detector list
-
-Detectors used in the simulation:
-
-{% for detname in detnames %}
- `{{ detname }}`
-{% endfor %}
-
-""",
-        detnames = detnames,
-        )
+        start_time        = start_time,
+        figures           = figures,
+        figs              = figures, #needed to loop over figures
+        detnames          = detnames)
 
         sim.flush()
 
