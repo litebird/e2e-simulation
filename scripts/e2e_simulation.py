@@ -439,6 +439,31 @@ Detectors used in the simulation:
 {% for detname in detnames %}
  `{{ detname }}`
 {% endfor %}
+
+## How to read the output
+
+### Maps and covariances
+
+```python
+import healpy
+m = healpy.read_map("path/to/file.fits", field=[0, 1, 2])
+```
+
+### Covariances in NPY format
+
+```python
+import numpy as np
+cov = np.load("path/to/filename.fits")
+```
+
+### TODs and pointings (observations)
+
+```python
+import litebird_sim as lbs
+
+obs = lbs.io.read_one_observation("path/to/file.hdf5", limit_mpi_rank=False)
+```
+
 """,
         imo_version       = imo_version,
         input_maps_path   = input_maps_path,
