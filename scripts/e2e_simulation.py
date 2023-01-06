@@ -461,7 +461,7 @@ cov = np.load("path/to/filename.fits")
 ```python
 import litebird_sim as lbs
 
-obs = lbs.io.read_one_observation("path/to/file.hdf5", limit_mpi_rank=False)
+obs = lbs.io.read_one_observation("path/to/file.hdf5", limit_mpi_rank=False, tod_fields=['tod_name1','tod_name2', ...])
 ```
 
 """,
