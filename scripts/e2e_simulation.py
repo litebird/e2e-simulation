@@ -164,13 +164,16 @@ def e2e_sim_production(toml_filename):
                                               split_list_over_processes=False)
     #create arrays to store all the TODs
     #obs_multitod.tod not used #MBNR
-    obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
-    obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
-    obs_multitod.tod_wn           = np.zeros_like(obs_multitod.tod)
-    obs_multitod.tod_cmb          = np.zeros_like(obs_multitod.tod)
-    obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod)
     if(isim==0):
-        obs_multitod.tod_dip      = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_wn           = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_cmb          = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod)
+    else:
+        obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
+        obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
 
     #pessimistic 1/f: set knee frequency and noise specification
     obs_multitod.fknee_mhz = 100
@@ -181,7 +184,7 @@ def e2e_sim_production(toml_filename):
     lbs.add_noise_to_observations([obs_multitod],
                                   'one_over_f',
                                   scale=1,
-                                  component="tod_wn_1f_100mHz")
+                                  component="tod_wn_1f_100mHz" if sim==0 else "tod_cmb_fg_wn_1f_100mHz")
 
     #realistic 1/f: set knee frequency
     obs_multitod.fknee_mhz = 30
@@ -190,21 +193,18 @@ def e2e_sim_production(toml_filename):
     lbs.add_noise_to_observations([obs_multitod],
                                   'one_over_f',
                                   scale=1,
-                                  component="tod_wn_1f_30mHz")
-    
-    if(rank==0):
-        t_noise_1_f = time.time()
-        print('time for filling 1/f noise timeline: ', t_noise_1_f-t_sim)
+                                  component="tod_wn_1f_30mHz" if sim==0 else "tod_cmb_fg_wn_1f_30mHz")
 
-    #white noise: add noise
-    lbs.add_noise_to_observations([obs_multitod],
-                                  'white',
-                                  scale=1,
-                                  component="tod_wn")
+    if(isim==0):
+        #white noise: add noise
+        lbs.add_noise_to_observations([obs_multitod],
+                                      'white',
+                                      scale=1,
+                                      component="tod_wn")
 
     if(rank==0):
         t_noise = time.time()
-        print('time for filling %s noise timeline: '%('white'), t_noise-t_noise_1_f)
+        print('time for filling noise timelines: ', t_noise-t_sim)
 
     #hwp specification
     hwp_radpsec = inst_info.metadata["hwp_rpm"]*2*np.pi/60
@@ -225,7 +225,12 @@ def e2e_sim_production(toml_filename):
     #read and scan cmb and fg maps
     input_map_type   = ['lens_cmb',                    'all_fg']
     input_map_folder = ['cmb/'+str(isim).zfill(2)+'/', 'all_fg/']
-    comp             = ['tod_cmb',                     'tod_fg']
+    if(isim==0):
+        comp = ['tod_cmb',
+                'tod_fg']
+    else:
+        comp = [['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz'], #add cmb to both tods
+                ['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz']] #add fg  to both tods
 
     for i_m in range(len(input_map_type)):
         #rank 0 reads maps and broadcasts them to the other processors
@@ -297,10 +302,7 @@ def e2e_sim_production(toml_filename):
                 os.mkdir(obs_path)
 
         #create list for components to be saved
-        if(isim==0):
-            field_list = ['tod_cmb','tod_fg','tod_dip','tod_wn','tod_wn_1f_100mHz','tod_wn_1f_30mHz']
-        else:
-            field_list = ['tod_cmb','tod_fg',          'tod_wn','tod_wn_1f_100mHz','tod_wn_1f_30mHz']
+        field_list = ['tod_cmb','tod_fg','tod_dip','tod_wn','tod_wn_1f_100mHz','tod_wn_1f_30mHz']
         
         #save tods
         tod_out_filename_dict = [{ "myvalue": "LB_"+telescope+"_"+str(freq)+"_obs_rank"+str(rank).zfill(4) }]
@@ -328,17 +330,25 @@ def e2e_sim_production(toml_filename):
         figures = []
 
     #create lists of combined components for mapmakers...
-    obs_list_mapmaking = [['tod_cmb', 'tod_fg', 'tod_wn'],
-                          ['tod_cmb', 'tod_fg', 'tod_wn_1f_100mHz'],
-                          ['tod_cmb', 'tod_fg', 'tod_wn_1f_30mHz'],
-                          ['tod_wn_1f_100mHz'],
-                          ['tod_wn_1f_30mHz']]
+    if(isim==0):
+        obs_list_mapmaking = [['tod_cmb', 'tod_fg', 'tod_wn'],
+                              ['tod_cmb', 'tod_fg', 'tod_wn_1f_100mHz'],
+                              ['tod_cmb', 'tod_fg', 'tod_wn_1f_30mHz'],
+                              ['tod_wn_1f_100mHz'],
+                              ['tod_wn_1f_30mHz']]
+    else:
+        obs_list_mapmaking = [['tod_cmb_fg_wn_1f_100mHz']
+                              ['tod_cmb_fg_wn_1f_30mHz']]
     #...and of their names
-    obs_name_mapmaking = ['cmb_fg_wn',
-                          'cmb_fg_wn_1f_100mHz',
-                          'cmb_fg_wn_1f_30mHz',
-                          'wn_1f_100mHz',
-                          'wn_1f_30mHz']
+    if(isim==0):
+        obs_name_mapmaking = ['cmb_fg_wn',
+                              'cmb_fg_wn_1f_100mHz',
+                              'cmb_fg_wn_1f_30mHz',
+                              'wn_1f_100mHz',
+                              'wn_1f_30mHz']
+    else:
+        obs_name_mapmaking = ['cmb_fg_wn_1f_100mHz',
+                              'cmb_fg_wn_1f_30mHz']
 
     save_files = True #flag for saving tods and pointings only once with save_simulation_for_madam
 
@@ -387,7 +397,7 @@ def e2e_sim_production(toml_filename):
                                                 #output_path=base_path, #default is sim.base_path / "madam_subfolder_name"
                                                 absolute_paths=True,
                                                 madam_subfolder_name='madam_'+obs_name,
-                                                components=['tod_cmb','tod_fg','tod_wn_1f_100mHz','tod_wn_1f_30mHz'],
+                                                components=['tod_cmb','tod_fg','tod_wn_1f_100mHz','tod_wn_1f_30mHz'] if isim==0 else ['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz'],
                                                 components_to_bin=obs_list,
                                                 save_pointings=save_files,
                                                 save_tods=save_files)
@@ -399,9 +409,9 @@ def e2e_sim_production(toml_filename):
     if(rank==0):
         t_save_maps = time.time()
         if(isim==0):
-            print('time for saving tods: ', t_save_maps-t_save_tod)
+            print('time for mapmaking: ', t_save_maps-t_save_tod)
         else:
-            print('time for saving tods: ', t_save_maps-t_tod)
+            print('time for mapmaking: ', t_save_maps-t_tod)
 
         # Create report
         sim.append_to_report("""
