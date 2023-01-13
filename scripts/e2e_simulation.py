@@ -376,7 +376,7 @@ def e2e_sim_production(toml_filename):
                                                    return_hit_map=True,
                                                    return_binned_map=True,
                                                    return_destriped_map=True,
-                                                   return_npp=False,
+                                                   return_npp=True,
                                                    return_invnpp=False,
                                                    return_rcond=False)
             #save results to be read by madam
