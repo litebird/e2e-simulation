@@ -96,7 +96,7 @@ process = subprocess.Popen("sbatch "+slurm_e2e, shell=True, stdout=subprocess.PI
 
 
 #print useful information
-print(det_names_file+'\n')
+print("sim"+isim,det_names_file+'\n')
 
 print("e2e")
 print("out: "+str(stdout_data).split('b\'')[1][:-3])
@@ -110,10 +110,14 @@ slurm_e2e_job_id = str(int(stdout_data[-9:]))
 #run madam
 link = 'false' #useful for producing links to tods and pointings for saving memory only for cases different than cmb_fg_wn_1f_100mHz
 if(mapmaking_type=='all' or mapmaking_type=='destriper'):
-    madam_maps_list = ['cmb_fg_wn_1f_100mHz',
-                       'cmb_fg_wn_1f_30mHz',
-                       'wn_1f_100mHz',
-                       'wn_1f_30mHz']
+    if(int(isim)==0):
+        madam_maps_list = ['cmb_fg_wn_1f_100mHz',
+                           'cmb_fg_wn_1f_30mHz',
+                           'wn_1f_100mHz',
+                           'wn_1f_30mHz']
+    else:
+        madam_maps_list = ['cmb_fg_wn_1f_100mHz',
+                           'cmb_fg_wn_1f_30mHz']
 
     for madam_map in madam_maps_list:
         slurm_madam = coderoot+"slurm_madam_"+madam_map+"_sim"+isim+"_"+det_names_file+".sl"
