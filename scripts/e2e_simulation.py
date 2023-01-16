@@ -155,7 +155,7 @@ def e2e_sim_production(toml_filename):
 
     if(rank==0):
         t_sim = time.time()
-        print('simulation time: ',t_sim - t_in)
+        print('simulation time: ',t_sim-t_in)
 
     #create Observation object
     (obs_multitod,) = sim.create_observations(detectors=dets,
@@ -175,37 +175,6 @@ def e2e_sim_production(toml_filename):
         obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
         obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
 
-    #pessimistic 1/f: set knee frequency and noise specification
-    obs_multitod.fknee_mhz = 100
-    obs_multitod.fmin_hz   = 1e-5
-    obs_multitod.net_ukrts = noises
-
-    #pessimistic 1/f: add noise
-    lbs.add_noise_to_observations([obs_multitod],
-                                  'one_over_f',
-                                  scale=1,
-                                  component="tod_wn_1f_100mHz" if sim==0 else "tod_cmb_fg_wn_1f_100mHz")
-
-    #realistic 1/f: set knee frequency
-    obs_multitod.fknee_mhz = 30
-
-    #realistic 1/f: add noise
-    lbs.add_noise_to_observations([obs_multitod],
-                                  'one_over_f',
-                                  scale=1,
-                                  component="tod_wn_1f_30mHz" if sim==0 else "tod_cmb_fg_wn_1f_30mHz")
-
-    if(isim==0):
-        #white noise: add noise
-        lbs.add_noise_to_observations([obs_multitod],
-                                      'white',
-                                      scale=1,
-                                      component="tod_wn")
-
-    if(rank==0):
-        t_noise = time.time()
-        print('time for filling noise timelines: ', t_noise-t_sim)
-
     #hwp specification
     hwp_radpsec = inst_info.metadata["hwp_rpm"]*2*np.pi/60
 
@@ -220,7 +189,7 @@ def e2e_sim_production(toml_filename):
 
     if(rank==0):
         t_point = time.time()
-        print('time for pointings: ', t_point-t_noise)
+        print('time for pointings: ', t_point-t_sim)
 
     #read and scan cmb and fg maps
     input_map_type   = ['lens_cmb',                    'all_fg']
@@ -268,8 +237,41 @@ def e2e_sim_production(toml_filename):
                                      component=comp[i_m])
 
     if(rank==0):
-        t_tod = time.time()
-        print('time for reading and scanning map for TODs: ', t_tod-t_point)
+        t_scan = time.time()
+        print('time for reading and scanning map for TODs: ', t_scan-t_point)
+
+    comm.barrier()
+
+    #pessimistic 1/f: set knee frequency and noise specification
+    obs_multitod.fknee_mhz = 100
+    obs_multitod.fmin_hz   = 1e-5
+    obs_multitod.net_ukrts = noises
+
+    #pessimistic 1/f: add noise
+    lbs.add_noise_to_observations([obs_multitod],
+                                  'one_over_f',
+                                  scale=1,
+                                  component="tod_wn_1f_100mHz" if sim==0 else "tod_cmb_fg_wn_1f_100mHz")
+
+    #realistic 1/f: set knee frequency
+    obs_multitod.fknee_mhz = 30
+
+    #realistic 1/f: add noise
+    lbs.add_noise_to_observations([obs_multitod],
+                                  'one_over_f',
+                                  scale=1,
+                                  component="tod_wn_1f_30mHz" if sim==0 else "tod_cmb_fg_wn_1f_30mHz")
+
+    if(isim==0):
+        #white noise: add noise
+        lbs.add_noise_to_observations([obs_multitod],
+                                      'white',
+                                      scale=1,
+                                      component="tod_wn")
+
+    if(rank==0):
+        t_noise = time.time()
+        print('time for filling noise timelines: ', t_noise-t_scan)
 
     comm.barrier()
 
@@ -292,7 +294,7 @@ def e2e_sim_production(toml_filename):
 
         if(rank==0):
             t_dip = time.time()
-            print('time for dipole construction: ', t_dip-t_tod)
+            print('time for dipole construction: ', t_dip-t_noise)
 
         #create save path for observation
         obs_path = base_path+'tods/'
@@ -411,7 +413,7 @@ def e2e_sim_production(toml_filename):
         if(isim==0):
             print('time for mapmaking: ', t_save_maps-t_save_tod)
         else:
-            print('time for mapmaking: ', t_save_maps-t_tod)
+            print('time for mapmaking: ', t_save_maps-t_noise)
 
         # Create report
         sim.append_to_report("""
