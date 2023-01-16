@@ -192,16 +192,14 @@ def e2e_sim_production(toml_filename):
         print('time for pointings: ', t_point-t_sim)
 
     #read and scan cmb and fg maps
-    input_map_type   = ['lens_cmb',                    'all_fg']
-    input_map_folder = ['cmb/'+str(isim).zfill(2)+'/', 'all_fg/']
     if(isim==0):
-        comp = ['tod_cmb',
-                'tod_fg']
+        comp             = ['tod_cmb',                     'tod_fg']
+        input_map_type   = ['lens_cmb',                    'all_fg']
+        input_map_folder = ['cmb/'+str(isim).zfill(2)+'/', 'all_fg/']
     else:
-        comp = ['tod_cmb_fg_wn_1f_100mHz',
-                'tod_cmb_fg_wn_1f_100mHz'] #add cmb and fg to the same tod field
+        comp = ['tod_cmb_fg_wn_1f_100mHz'] #add cmb and fg to one tod field only
 
-    for i_m in range(len(input_map_type)):
+    for i_m in range(len(comp)):
         #rank 0 reads maps and broadcasts them to the other processors
         if(rank==0):
             #load maps
@@ -212,8 +210,17 @@ def e2e_sim_production(toml_filename):
                         same_freq_spec = 'a'
                     else:
                         same_freq_spec = 'b'
-                maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_'+input_map_type[i_m]+'_postPTEP20220609.fits',
-                                   field=[0,1,2])
+                if(isim==0):
+                    #read cmb OR fg map
+                    maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_'+input_map_type[i_m]+'_postPTEP20220609.fits',
+                                       field=[0,1,2])
+                else:
+                    #read cmb map only
+                    maps =  hp.read_map(input_maps_path+'cmb/'+str(isim).zfill(2)+'/'+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_lens_cmb_postPTEP20220609.fits',
+                                       field=[0,1,2])
+                    #read and sum fg map to cmb one
+                    maps += hp.read_map(input_maps_path+'all_fg/'                    +'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_all_fg_postPTEP20220609.fits',
+                                       field=[0,1,2])
             except:
                 print("Error while reading map",input_map_type[i_m],"for channel",channels[0])
         else:
