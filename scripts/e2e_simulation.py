@@ -337,7 +337,7 @@ def e2e_sim_production(toml_filename):
                               ['tod_wn_1f_100mHz'],
                               ['tod_wn_1f_30mHz']]
     else:
-        obs_list_mapmaking = [['tod_cmb_fg_wn_1f_100mHz']
+        obs_list_mapmaking = [['tod_cmb_fg_wn_1f_100mHz'],
                               ['tod_cmb_fg_wn_1f_30mHz']]
     #...and of their names
     if(isim==0):
