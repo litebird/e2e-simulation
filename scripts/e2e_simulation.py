@@ -198,8 +198,8 @@ def e2e_sim_production(toml_filename):
         comp = ['tod_cmb',
                 'tod_fg']
     else:
-        comp = [['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz'], #add cmb to both tods
-                ['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz']] #add fg  to both tods
+        comp = ['tod_cmb_fg_wn_1f_100mHz',
+                'tod_cmb_fg_wn_1f_100mHz'] #add cmb and fg to the same tod field
 
     for i_m in range(len(input_map_type)):
         #rank 0 reads maps and broadcasts them to the other processors
@@ -235,6 +235,10 @@ def e2e_sim_production(toml_filename):
                                      #pointings, #not needed if pointing already stored in obs
                                      input_map_in_galactic=True,
                                      component=comp[i_m])
+
+    if(isim>0):
+        #add cmb and fg tods to the other field
+        obs_multitod.tod_cmb_fg_wn_1f_30mHz += obs_multitod.tod_cmb_fg_wn_1f_100mHz
 
     if(rank==0):
         t_scan = time.time()
