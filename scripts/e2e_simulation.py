@@ -206,16 +206,14 @@ def e2e_sim_production(toml_filename):
         if(rank==0):
             #load maps
             try:
+                same_freq_spec = '' #specify which map to load for channels with the same frequency
                 if freq in [68,78,89]:
                     if(channels[0][:2]=='L1' or channels[0][:2]=='L2'):
-                        maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+'a_'+input_map_type[i_m]+'_postPTEP20220609.fits',
-                                           field=[0,1,2])
+                        same_freq_spec = 'a'
                     else:
-                        maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+'b_'+input_map_type[i_m]+'_postPTEP20220609.fits',
-                                           field=[0,1,2])
-                else:
-                    maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+ '_'+input_map_type[i_m]+'_postPTEP20220609.fits',
-                                       field=[0,1,2])
+                        same_freq_spec = 'b'
+                maps = hp.read_map(input_maps_path+input_map_folder[i_m]+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_'+input_map_type[i_m]+'_postPTEP20220609.fits',
+                                   field=[0,1,2])
             except:
                 print("Error while reading map",input_map_type[i_m],"for channel",channels[0])
         else:
