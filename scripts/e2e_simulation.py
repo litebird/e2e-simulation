@@ -165,15 +165,17 @@ def e2e_sim_production(toml_filename):
     #create arrays to store all the TODs
     #obs_multitod.tod not used #MBNR
     if(isim==0):
-        obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod_wn           = np.zeros_like(obs_multitod.tod)
         obs_multitod.tod_cmb          = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod)
+        #obs_multitod.tod              = np.nan #to save memory
+        obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod_cmb)
+        obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod_cmb)
+        obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb)
+        obs_multitod.tod_wn           = np.zeros_like(obs_multitod.tod_cmb)
+        obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod_cmb)
     else:
         obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod)
+        #obs_multitod.tod                     = np.nan #to save memory
+        obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
 
     #hwp specification
     hwp_radpsec = inst_info.metadata["hwp_rpm"]*2*np.pi/60
@@ -260,7 +262,7 @@ def e2e_sim_production(toml_filename):
     lbs.add_noise_to_observations([obs_multitod],
                                   'one_over_f',
                                   scale=1,
-                                  component="tod_wn_1f_100mHz" if sim==0 else "tod_cmb_fg_wn_1f_100mHz")
+                                  component="tod_wn_1f_100mHz" if isim==0 else "tod_cmb_fg_wn_1f_100mHz")
 
     #realistic 1/f: set knee frequency
     obs_multitod.fknee_mhz = 30
@@ -269,7 +271,7 @@ def e2e_sim_production(toml_filename):
     lbs.add_noise_to_observations([obs_multitod],
                                   'one_over_f',
                                   scale=1,
-                                  component="tod_wn_1f_30mHz" if sim==0 else "tod_cmb_fg_wn_1f_30mHz")
+                                  component="tod_wn_1f_30mHz" if isim==0 else "tod_cmb_fg_wn_1f_30mHz")
 
     if(isim==0):
         #white noise: add noise
