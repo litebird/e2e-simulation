@@ -166,7 +166,7 @@ def e2e_sim_production(toml_filename):
     #obs_multitod.tod not used #MBNR
     if(isim==0):
         obs_multitod.tod_cmb          = np.zeros_like(obs_multitod.tod)
-        #obs_multitod.tod              = np.nan #to save memory
+        obs_multitod.tod              = np.array([], dtype='float32') #to save memory
         obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod_cmb)
         obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod_cmb)
         obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb)
@@ -174,7 +174,7 @@ def e2e_sim_production(toml_filename):
         obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod_cmb)
     else:
         obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
-        #obs_multitod.tod                     = np.nan #to save memory
+        obs_multitod.tod                     = np.array([], dtype='float32') #to save memory
         obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
 
     #hwp specification
