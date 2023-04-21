@@ -10,13 +10,14 @@ import sys
 
 def plot_map(m,title,save_filename):
     '''
-    This function saves the mollview of the map m as a png figure and returns a tuple used to
-    insert the image in the report.
+    This function saves the mollview of the map m as a png figure and returns
+    a tuple used to show the image in the report.
 
     m: map to be plotted;
     title: string, shown in the title of the figure;
-    base_path: string, same parameter of e2e_sim_production;
     save_filename: string, name of the output file, e.g. 'my_figure.png'
+
+    returns: tutle with figure and save_filename
     '''
 
     fig = plt.figure()
@@ -56,23 +57,25 @@ def save_append_maps(map_path,map_name,map_output,cov_output,figures):
 
 def e2e_sim_production(toml_filename):
     '''
-    This function initializes a simulation, generates or reads a dictionary of CMB/FG maps, one for each
-    detector, and writes seven separated timelines (cmb,fg w/o band integration, fg w/ band integration,
-    white noise, white+1/f noise, linear dipole, complete dipole) to be saved in separated hdf5 files. 
+    This function reads CMB/FG maps, scans them and produces white noise, 1/f noises and cmb dipole.
+    Only for the first simulation, i.e. sim0000, it writes timelines (cmb, fg, white noise,
+    white noise+1/f noise with f_knee of 30mHz, white noise+1/f noise with f_knee of 100mHz, dipole)
+    as hdf5 files. It then uses the timelines to produce binned and/or to save the results to then
+    produce destriped maps with madam.
     The time employed for each step is printed.
 
     toml_filename: string, name of the TOML file where the following parameters are specified:
         imo_version: string, version of the IMO, e.g. 'v1.3';
-        input_maps_path: string, locaton of the input maps to be scanned;
-        telescope: string, telescope name (string) e.g. 'LFT';
+        input_maps_path: string, location of the input maps to be scanned;
+        telescope: string, telescope name, e.g. 'LFT';
         det_names_file: string, file containing detector names, each one associated with its channel and noise NET.
                         Only and all detectors in this file will be used, e.g. to consider only top
                         detectors you should produce a file only with those detectors. This string is
-                        also used for save file names.
+                        also used for names of saved files.
                         IMPORTANT: this script should be run with only 1 channel;
         nside: int, the resolution of the maps;
         isim: int, simulation number;
-        mission_time_days: string, days of observation AND number of processors used, each handling 1 observation day;
+        mission_time_days: string, days of observation;
         mapmaking_type: string, type of mapmaking, 'binned', 'destriper' or 'all';
         name: string, name of the simulation;
         base_path: string, path where you want to save the maps and observations generated;
