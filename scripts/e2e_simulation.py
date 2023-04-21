@@ -56,7 +56,7 @@ def save_append_maps(map_path,map_name,map_output,cov_output,figures):
 
 def e2e_sim_production(toml_filename):
     '''
-    This function initializes a simulation, generates or reads a dictionaty of CMB/FG maps, one for each
+    This function initializes a simulation, generates or reads a dictionary of CMB/FG maps, one for each
     detector, and writes seven separated timelines (cmb,fg w/o band integration, fg w/ band integration,
     white noise, white+1/f noise, linear dipole, complete dipole) to be saved in separated hdf5 files. 
     The time employed for each step is printed.
@@ -80,7 +80,7 @@ def e2e_sim_production(toml_filename):
         duration_s: string, days of observation, e.g. '365 days' (same as mission_time_days but recognized by lbs.Simulation)
     '''
 
-    #for parallelization; each rank handles 1 day of observation
+    #for parallelization
     comm = lbs.MPI_COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -145,13 +145,10 @@ def e2e_sim_production(toml_filename):
     
     #filling dets with info and detquats with quaternions of the detectors in detlist
     dets = []
-    detquats = []
     for i_det in range(ndet):
         det = lbs.DetectorInfo.from_imo(url="/releases/"+imo_version+"/satellite/"+telescope+"/"+channels[i_det]+"/"+detnames[i_det]+"/detector_info",
                                         imo=imo)
-        #det.sampling_rate_hz = 1 #if commented, this parameter is taken from the IMO
         dets.append(det)
-        detquats.append(det.quat)
 
     if(rank==0):
         t_sim = time.time()
@@ -163,10 +160,9 @@ def e2e_sim_production(toml_filename):
                                               n_blocks_time=size,
                                               split_list_over_processes=False)
     #create arrays to store all the TODs
-    #obs_multitod.tod not used #MBNR
     if(isim==0):
         obs_multitod.tod_cmb          = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod              = np.array([], dtype='float32') #to save memory
+        obs_multitod.tod              = np.array([], dtype='float32') #not used, to save memory
         obs_multitod.tod_fg           = np.zeros_like(obs_multitod.tod_cmb)
         obs_multitod.tod_wn_1f_100mHz = np.zeros_like(obs_multitod.tod_cmb)
         obs_multitod.tod_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb)
@@ -174,20 +170,22 @@ def e2e_sim_production(toml_filename):
         obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod_cmb)
     else:
         obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
-        obs_multitod.tod                     = np.array([], dtype='float32') #to save memory
+        obs_multitod.tod                     = np.array([], dtype='float32') #not used, to save memory
         obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
 
     #hwp specification
     hwp_radpsec = inst_info.metadata["hwp_rpm"]*2*np.pi/60
 
     #get pointings and store them in obs_multitod
+    quaternion_buffer = np.zeros((obs_multitod.n_samples, 1, 4))
     pointings = lbs.pointings.get_pointings(obs_multitod,
                                             spin2ecliptic_quats=sim.spin2ecliptic_quats,
-                                            detector_quats=detquats,
                                             bore2spin_quat=inst.bore2spin_quat,
-                                            hwp=lbs.IdealHWP(hwp_radpsec),   #applies hwp rotation angle to the polarization angle                                  
+                                            hwp=lbs.IdealHWP(hwp_radpsec),   #applies hwp rotation angle to the polarization angle
+                                            quaternion_buffer=quaternion_buffer,
                                             store_pointings_in_obs=True)     #if True, stores colatitude and longitude in obs_multitod.pointings,
                                                                              #and the polarization angle in obs_multitod.psi
+    del quaternion_buffer
 
     if(rank==0):
         t_point = time.time()
@@ -239,7 +237,6 @@ def e2e_sim_production(toml_filename):
         #fill the TOD
         lbs.scan_map_in_observations(obs_multitod,
                                      maps,
-                                     #pointings, #not needed if pointing already stored in obs
                                      input_map_in_galactic=True,
                                      component=comp[i_m])
 
@@ -396,10 +393,11 @@ def e2e_sim_production(toml_filename):
                                                    nnz=3, #compute I, Q, and U
                                                    baseline_length_s=60,
                                                    iter_max=100, #default is 100
-                                                   return_hit_map=True,
+                                                   return_hit_map=False,
+                                                   return_baselines_map=False,
                                                    return_binned_map=True,
                                                    return_destriped_map=True,
-                                                   return_npp=True,
+                                                   return_npp=False,
                                                    return_invnpp=False,
                                                    return_rcond=False)
             #save results to be read by madam
@@ -407,7 +405,6 @@ def e2e_sim_production(toml_filename):
                                                 params=params_madam,
                                                 detectors=dets,
                                                 use_gzip=False,
-                                                #output_path=base_path, #default is sim.base_path / "madam_subfolder_name"
                                                 absolute_paths=True,
                                                 madam_subfolder_name='madam_'+obs_name,
                                                 components=['tod_cmb','tod_fg','tod_wn_1f_100mHz','tod_wn_1f_30mHz'] if isim==0 else ['tod_cmb_fg_wn_1f_100mHz','tod_cmb_fg_wn_1f_30mHz'],
