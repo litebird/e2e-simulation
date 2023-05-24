@@ -12,19 +12,62 @@ channel         = sys.argv[3] #e.g. 'L2-050'
 det_names_file  = 'detectors_'+telescope+'_'+channel+'_T+B'
 nside           = 512
 start_time      = '2030-04-01T00:00:00'
-nnodes          = 27
-if(channel=="H3-402"):
-    nnodes      = 40 #more nodes needed for H3-403
-if(telescope=='MFT'):
-    nnodes      = 54 #even more nodes needed for MFT channels
 ntasks_per_node = 48
 sim_days        = 365 #simulated days
-
-mapmaking_type  = 'all' #binned, destriper or all
+mapmaking_type  = 'destriper' #binned, destriper or all
 imo_version     = 'v1.3'
 name            = 'sim'+isim+'_'+det_names_file
 
-qos_bprod       = '#SBATCH --qos=skl_qos_bprod                      #for 54 nodes' if nnodes>32 else ''
+#empirical values for nodes and time needed for sims > 0000
+match = channel[0:2]
+if match == "L1" :
+    nnodese2e   = 4
+    nnodesmadam = 3
+    walle2e   = "00:30:00"
+    wallmadam = "00:30:00"
+if match == "L2" :
+    nnodese2e   = 2
+    nnodesmadam = 2
+    walle2e   = "00:15:00"
+    wallmadam = "00:15:00"
+if match == "L3" :
+    nnodese2e   = 4
+    nnodesmadam = 3
+    walle2e   = "00:30:00"
+    wallmadam = "00:30:00"
+if match == "L4" :
+    nnodese2e   = 4
+    nnodesmadam = 3
+    walle2e   = "00:30:00"
+    wallmadam = "00:30:00"
+if match == "H1" :
+    nnodese2e   = 7
+    nnodesmadam = 4
+    walle2e   = "00:20:00"
+    wallmadam = "00:30:00"
+if match == "H2" :
+    nnodese2e   = 7
+    nnodesmadam = 4
+    walle2e   = "00:20:00"
+    wallmadam = "00:30:00"
+if match == "H3" :
+    nnodese2e   = 10
+    nnodesmadam = 6
+    walle2e   = "00:20:00"
+    wallmadam = "00:40:00"
+if match == "M1" :
+    nnodese2e   = 10
+    nnodesmadam = 10
+    walle2e   = "00:20:00"
+    wallmadam = "01:00:00"
+if match == "M2" :
+    nnodese2e   = 14
+    nnodesmadam = 9
+    walle2e   = "00:30:00"
+    wallmadam = "01:00:00"
+
+partition       = '#SBATCH --partition=skl_usr_prod                 #The name of queue to use' if nnodese2e>2 else '#SBATCH --partition=skl_usr_dbg                  #The name of queue to use'
+qos_bprod       = '#SBATCH --qos=skl_qos_bprod                      #for 54 nodes' if nnodese2e>32 else ''
 
 #paths
 coderoot        = '' #COMPLETE HERE   #folder where e2e_simulation.py is stored
@@ -32,7 +75,6 @@ base_path       = '/my/path/litebird/e2e_ns'+str(nside)+'/sim'+isim+'/'+det_name
 input_maps_path = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
 madam_path      = '/my/path/Madam3.7.4/' #folder where madam executable is stored
 user_email      = '' #COMPLETE HERE   #your email for notification
-
 
 
 #create TOML file for e2e_simulation.py
@@ -61,14 +103,14 @@ with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
 slurm_e2e = coderoot+"slurm_e2e_sim"+isim+"_"+det_names_file+".sl"
 
 slurm = """#!/bin/bash
-#SBATCH --time=00:30:00                          #The requested execution time (max time) in hh:mm:ss
-#SBATCH --nodes={nnodes}                         #The number of requested nodes
+#SBATCH --time={walle2e}                          #The requested execution time (max time) in hh:mm:ss
+#SBATCH --nodes={nnodese2e}                         #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=182000                             #The requested memory per node
 #SBATCH --job-name e2e_simulation                #The job name
-#SBATCH --account=INF22_lspe                     #Project name
-#SBATCH --partition=skl_usr_prod                 #The name of queue to use
+#SBATCH --account=INF23_litebird                 #Project name
+{partition}
 {qos_bprod}
 #SBATCH --mail-type=ALL                          #Send me an email at job start/end
 #SBATCH --mail-user={user_email}                 #User mail address
@@ -78,10 +120,9 @@ slurm = """#!/bin/bash
 cd {coderoot}
 #export OMP_PROC_BIND=spread
 #export OMP_PLACES=threads
-#export OMP_NUM_THREADS=2
+#export OMP_NUM_THREADS=1
 
 srun --cpu-bind=cores python -c "from e2e_simulation import e2e_sim_production;
-
 e2e_sim_production('{toml_filename}')"
 """
 
@@ -123,14 +164,14 @@ if(mapmaking_type=='all' or mapmaking_type=='destriper'):
         slurm_madam = coderoot+"slurm_madam_"+madam_map+"_sim"+isim+"_"+det_names_file+".sl"
         
         slurm = """#!/bin/bash
-#SBATCH --time=01:00:00                          #The requested execution time (max time) in hh:mm:ss
-#SBATCH --nodes={nnodes}                         #The number of requested nodes
+#SBATCH --time={wallmadam}                          #The requested execution time (max time) in hh:mm:ss
+#SBATCH --nodes={nnodesmadam}                         #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=182000                             #The requested memory per node
 #SBATCH --job-name madam_{madam_map}             #The job name
-#SBATCH --account=INF22_lspe                     #Project name
-#SBATCH --partition=skl_usr_prod                 #The name of queue to use
+#SBATCH --account=INF23_litebird                 #Project name
+{partition}
 {qos_bprod}
 #SBATCH --mail-type=ALL                          #Send me an email at job start/end
 #SBATCH --mail-user={user_email}                 #User mail address
