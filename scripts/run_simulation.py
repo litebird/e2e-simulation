@@ -194,7 +194,7 @@ srun --cpu-bind=cores ./madam {base_path}madam_{madam_map}/madam.par
 
         link = 'true'
 
-        process = subprocess.Popen("sbatch -d afterany:"+slurm_e2e_job_id+" "+slurm_madam, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen("sbatch -d afterok:"+slurm_e2e_job_id+" "+slurm_madam, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout_data, stderr_data) = process.communicate()
 
         #print useful information
