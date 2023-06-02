@@ -144,13 +144,16 @@ print("out: "+str(stdout_data).split('b\'')[1][:-3])
 print("err: "+str(stderr_data).split('b\'')[1][:-3])
 print('')
 
-slurm_e2e_job_id = str(int(stdout_data[-9:]))
-
 
 
 #run madam
-link = 'false' #useful for producing links to tods and pointings for saving memory only for cases different than cmb_fg_wn_1f_100mHz
 if(mapmaking_type=='all' or mapmaking_type=='destriper'):
+
+    #get e2e job id
+    slurm_e2e_job_id = str(int(stdout_data[-9:]))
+
+    link = 'false' #useful for producing links to tods and pointings for saving memory only for cases different than cmb_fg_wn_1f_100mHz
+
     if(int(isim)==0):
         madam_maps_list = ['cmb_fg_wn_1f_100mHz',
                            'cmb_fg_wn_1f_30mHz',
