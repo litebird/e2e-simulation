@@ -14,7 +14,7 @@ nside           = 512
 start_time      = '2030-04-01T00:00:00'
 ntasks_per_node = 48
 sim_days        = 365 #simulated days
-mapmaking_type  = 'destriper' #binned, destriper or all
+mapmaking_type  = 'binned' #binned, destriper or all
 imo_version     = 'v1.3'
 name            = 'sim'+isim+'_'+det_names_file
 
