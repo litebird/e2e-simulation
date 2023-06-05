@@ -224,8 +224,8 @@ def e2e_sim_production(toml_filename,
                                       )
             
         if(rank==0):
-            print('Producing map: '+obs_name)
-            map_name = 'LB_'+telescope+'_'+channels+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            print('Producing map: 100mHz')
+            map_name = 'LB_'+telescope+'_'+channels[0]+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
             hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
         if(rank==0):
@@ -262,8 +262,8 @@ def e2e_sim_production(toml_filename,
         comm.barrier()
      
         if(rank==0):
-            print('Producing map: '+obs_name)
-            map_name = 'LB_'+telescope+'_'+channels+'_binned_cmb_fg_wn_1f_030mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            print('Producing map: 30mHz')
+            map_name = 'LB_'+telescope+'_'+channels[0]+'_binned_cmb_fg_wn_1f_030mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
             hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
         if(rank==0):
