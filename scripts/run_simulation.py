@@ -55,12 +55,9 @@ partition       = '#SBATCH --partition=skl_usr_prod                 #The name of
 coderoot         = '' #COMPLETE HERE   #folder where e2e_simulation.py is stored
 base_path_prefix = '/my/path/litebird/e2e_ns'+str(nside)+'/' #COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
 input_maps_path  = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
-madam_path       = '/my/path/Madam3.7.4/' #folder where madam executable is stored
 user_email       = '' #COMPLETE HERE   #your email for notification
 
 #create TOML files for e2e_simulation.py for each isim
-base_path = base_path_prefix
-
 toml_filename = 'e2e_sim_from'+isimstart+'to'+isimend+'_'+det_names_file+'_params'
 with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
     f.write('[general]\n')
@@ -104,7 +101,7 @@ cd {coderoot}
 #export OMP_NUM_THREADS=1
 
 srun --cpu-bind=cores python -c "from e2e_simulation import e2e_sim_production;
-e2e_sim_production('{det_names_file}','{isimstart}','{nsims}')"
+e2e_sim_production('{toml_filename}','{isimstart}','{isimend}')"
 '''
 
 slurm = slurm.format(**locals())

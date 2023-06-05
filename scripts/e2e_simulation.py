@@ -10,7 +10,7 @@ import os
 import sys
 
 
-def e2e_sim_production(det_names_file,
+def e2e_sim_production(toml_filename,
     isimstart: int,
     isimend: Union[None, int] = None,
     ):
@@ -55,14 +55,18 @@ def e2e_sim_production(det_names_file,
     if isimend == None:
         isimend = isimstart
 
+    isimstart = int(isimstart)
+    isimend = int(isimend)
     #loop over simulations
     first_time = True
 
     for isim in range(isimstart,isimend+1):
-        if(first_time):
+        if (rank==0):
+            print('Doing sim: '+str(isim).zfill(4))
+        if (first_time):
             #initializing the simulation
-            sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+'/ancillary/e2e_sim'+str(isim).zfill(4)+'_'+det_names_file+'_params.toml',
-                                 mpi_comm=comm)
+            sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
+                         mpi_comm=comm)
 
             #extract useful parameters
             imo_version       =     sim.parameters['general']['imo_version']
@@ -124,7 +128,7 @@ def e2e_sim_production(det_names_file,
 
             if(rank==0):
                 t_sim = time.time()
-                print('simulation time: ',t_sim-t_in)
+                print('Time for initialization: ',t_sim-t_in)
 
             comm.barrier()
 
@@ -156,12 +160,14 @@ def e2e_sim_production(det_names_file,
 
             if(rank==0):
                 t_point = time.time()
-                print('time for pointings: ', t_point-t_sim)
+                print('Time for pointings: ', t_point-t_sim)
 
         #end of first_time
+        if(rank==0):
+            t_common = time.time()
 
-        obs_multitod.tod_cmb_fg_wn_1f_100mHz = 0.0
-        obs_multitod.tod_cmb_fg_wn_1f_30mHz = 0.0
+        obs_multitod.tod_cmb_fg_wn_1f_100mHz.fill(0.0)
+        obs_multitod.tod_cmb_fg_wn_1f_30mHz.fill(0.0)
 
         comm.barrier()
 
@@ -174,16 +180,18 @@ def e2e_sim_production(det_names_file,
                         same_freq_spec = 'a'
                     else:
                         same_freq_spec = 'b'
-                    #read cmb map only
-                    maps =  hp.read_map(input_maps_path+'cmb/'+str(isim).zfill(2)+'/'+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_lens_cmb_postPTEP20220609.fits',
+                #read cmb map only
+                maps =  hp.read_map(input_maps_path+'cmb/'+str(isim).zfill(2)+'/'+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_lens_cmb_postPTEP20220609.fits',
                                        field=[0,1,2])
-                    #read and sum fg map to cmb one
-                    maps += hp.read_map(input_maps_path+'all_fg/'                    +'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_all_fg_postPTEP20220609.fits',
+                #read and sum fg map to cmb one
+                maps += hp.read_map(input_maps_path+'all_fg/'                    +'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_all_fg_postPTEP20220609.fits',
                                        field=[0,1,2])
             except:
-                print('Error while reading map',input_map_type[i_m],'for channel',channels[0])
+                print('Error while reading maps for channel',channels[0])
         else:
             maps = None
+
+        comm.barrier()
 
         #broadcast maps read by rank 0
         maps = comm.bcast(maps, root=0)
@@ -199,11 +207,13 @@ def e2e_sim_production(det_names_file,
                                      input_map_in_galactic=True,
                                      component='tod_cmb_fg_wn_1f_100mHz')
 
+        del maps
+    
         obs_multitod.tod_cmb_fg_wn_1f_30mHz += obs_multitod.tod_cmb_fg_wn_1f_100mHz
 
         if(rank==0):
             t_scan = time.time()
-            print('time for reading and scanning map for TODs: ', t_scan-t_point)
+            print('time for reading and scanning map for TODs: ', t_scan-t_common)
 
         comm.barrier()
 
@@ -253,6 +263,7 @@ def e2e_sim_production(det_names_file,
                                           components=obs_list)
             
             if(rank==0):
+                print('Producing map: '+obs_name)
                 map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_'+obs_name+'_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
                 hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
@@ -260,10 +271,7 @@ def e2e_sim_production(det_names_file,
     
         if(rank==0):
             t_save_maps = time.time()
-            if(isim==0):
-                print('time for mapmaking: ', t_save_maps-t_save_tod)
-            else:
-                print('time for mapmaking: ', t_save_maps-t_noise)
+            print('time for mapmaking: ', t_save_maps-t_noise)
 
 
         first_time = False
