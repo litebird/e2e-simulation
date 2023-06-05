@@ -61,8 +61,10 @@ def e2e_sim_production(toml_filename,
     first_time = True
 
     for isim in range(isimstart,isimend+1):
+   
         if (rank==0):
             print('Doing sim: '+str(isim).zfill(4))
+
         if (first_time):
             #initializing the simulation
             sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
@@ -223,7 +225,7 @@ def e2e_sim_production(toml_filename,
             
         if(rank==0):
             print('Producing map: '+obs_name)
-            map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            map_name = 'LB_'+telescope+'_'+channels+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
             hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
         if(rank==0):
@@ -261,7 +263,7 @@ def e2e_sim_production(toml_filename,
      
         if(rank==0):
             print('Producing map: '+obs_name)
-            map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_cmb_fg_wn_1f_30mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            map_name = 'LB_'+telescope+'_'+channels+'_binned_cmb_fg_wn_1f_030mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
             hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
         if(rank==0):
