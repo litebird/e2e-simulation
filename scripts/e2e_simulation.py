@@ -133,29 +133,25 @@ def e2e_sim_production(toml_filename,
             comm.barrier()
 
             #create Observation object
-            (obs_multitod,) = sim.create_observations(detectors=dets,
-                                                      n_blocks_det=1,
-                                                      n_blocks_time=size,
-                                                      split_list_over_processes=False)
-
-            obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod) 
-            obs_multitod.tod                     = np.array([], dtype='float32') #not used, to save memory
-            obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
+            (obs,) = sim.create_observations(detectors=dets,
+                                             n_blocks_det=1,
+                                             n_blocks_time=size,
+                                             split_list_over_processes=False)
 
             comm.barrier()
 
             #hwp specification
             hwp_radpsec = inst_info.metadata['hwp_rpm']*2*np.pi/60
 
-            #get pointings and store them in obs_multitod
-            quaternion_buffer = np.zeros((obs_multitod.n_samples, 1, 4))
-            pointings = lbs.pointings.get_pointings(obs_multitod,
+            #get pointings and store them in obs
+            quaternion_buffer = np.zeros((obs.n_samples, 1, 4))
+            pointings = lbs.pointings.get_pointings(obs,
                                                     spin2ecliptic_quats=sim.spin2ecliptic_quats,
                                                     bore2spin_quat=inst.bore2spin_quat,
                                                     hwp=lbs.IdealHWP(hwp_radpsec),   #applies hwp rotation angle to the polarization angle
                                                     quaternion_buffer=quaternion_buffer,
-                                                    store_pointings_in_obs=True)     #if True, stores colatitude and longitude in obs_multitod.pointings,
-                                                                                     #and the polarization angle in obs_multitod.psi
+                                                    store_pointings_in_obs=True)     #if True, stores colatitude and longitude in obs.pointings,
+                                                                                     #and the polarization angle in obs.psi
             del quaternion_buffer
 
             if(rank==0):
@@ -166,8 +162,7 @@ def e2e_sim_production(toml_filename,
         if(rank==0):
             t_common = time.time()
 
-        obs_multitod.tod_cmb_fg_wn_1f_100mHz.fill(0.0)
-        obs_multitod.tod_cmb_fg_wn_1f_30mHz.fill(0.0)
+        obs.tod.fill(0.0)
 
         comm.barrier()
 
@@ -202,76 +197,77 @@ def e2e_sim_production(toml_filename,
         comm.barrier()
 
         #fill the TOD
-        lbs.scan_map_in_observations(obs_multitod,
+        lbs.scan_map_in_observations(obs,
                                      maps,
                                      input_map_in_galactic=True,
-                                     component='tod_cmb_fg_wn_1f_100mHz')
-
-        del maps
-    
-        obs_multitod.tod_cmb_fg_wn_1f_30mHz += obs_multitod.tod_cmb_fg_wn_1f_100mHz
-
-        if(rank==0):
-            t_scan = time.time()
-            print('time for reading and scanning map for TODs: ', t_scan-t_common)
+                                     )
 
         comm.barrier()
 
         #pessimistic 1/f: set knee frequency and noise specification
-        obs_multitod.fknee_mhz = 100
-        obs_multitod.fmin_hz   = 1e-5
-        obs_multitod.net_ukrts = noises
+        obs.fknee_mhz = 100
+        obs.fmin_hz   = 1e-5
+        obs.net_ukrts = noises
 
         #pessimistic 1/f: add noise
-        lbs.add_noise_to_observations([obs_multitod],
+        lbs.add_noise_to_observations([obs],
                                       'one_over_f',
                                       scale=1,
-                                      component='tod_cmb_fg_wn_1f_100mHz')
+                                      )
+
+        map_output = lbs.make_bin_map([obs],
+                                      nside,
+                                      do_covariance=False,
+                                      output_map_in_galactic=True,
+                                      )
+            
+        if(rank==0):
+            print('Producing map: '+obs_name)
+            map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
+
+        if(rank==0):
+            t_map100 = time.time()
+            print('Time for 100mHz map: ', t_map100-t_common)
+
+        comm.barrier()
+
+        obs.tod.fill(0.0)
+
+        #fill the TOD
+        lbs.scan_map_in_observations(obs,
+                                     maps,
+                                     input_map_in_galactic=True,
+                                     )
+
+        del maps
 
         #realistic 1/f: set knee frequency
-        obs_multitod.fknee_mhz = 30
+        obs.fknee_mhz = 30
 
         #realistic 1/f: add noise
-        lbs.add_noise_to_observations([obs_multitod],
+        lbs.add_noise_to_observations([obs],
                                       'one_over_f',
                                       scale=1,
-                                      component='tod_cmb_fg_wn_1f_30mHz')
+                                      )
 
-        if(rank==0):
-            t_noise = time.time()
-            print('time for filling noise timelines: ', t_noise-t_scan)
-
-        comm.barrier()
-
-
-        #create lists of combined components for mapmakers...
-        obs_list_mapmaking = [['tod_cmb_fg_wn_1f_100mHz'],
-                              ['tod_cmb_fg_wn_1f_30mHz']]
-    
-        #...and of their names
-        obs_name_mapmaking = ['cmb_fg_wn_1f_100mHz',
-                              'cmb_fg_wn_1f_30mHz']
-
-
-        for obs_list,obs_name in zip(obs_list_mapmaking,obs_name_mapmaking):
-            
-            #build the output maps
-            map_output = lbs.make_bin_map(obs_multitod,
-                                          nside,
-                                          do_covariance=False,
-                                          output_map_in_galactic=True,
-                                          components=obs_list)
-            
-            if(rank==0):
-                print('Producing map: '+obs_name)
-                map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_'+obs_name+'_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
-                hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
+        map_output = lbs.make_bin_map([obs],
+                                      nside,
+                                      do_covariance=False,
+                                      output_map_in_galactic=True,
+                                      )
 
         comm.barrier()
-    
+     
         if(rank==0):
-            t_save_maps = time.time()
-            print('time for mapmaking: ', t_save_maps-t_noise)
+            print('Producing map: '+obs_name)
+            map_name = 'LB_'+telescope+'_'+str(freq)+'_binned_cmb_fg_wn_1f_30mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
+            hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
 
+        if(rank==0):
+            t_map30 = time.time()
+            print('Time for 100mHz map: ', t_map30 - t_map100)
+
+        comm.barrier()
 
         first_time = False
