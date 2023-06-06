@@ -87,7 +87,7 @@ slurm = '''#!/bin/bash
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=182000                             #The requested memory per node
-#SBATCH --job-name e2e_simulation                #The job name
+#SBATCH --job-name e2e_{det_names_file}_sim_from{isimstart}to{isimend}                #The job name
 #SBATCH --account=INF23_litebird                 #Project name
 {partition}
 #SBATCH --mail-type=ALL                          #Send me an email at job start/end
