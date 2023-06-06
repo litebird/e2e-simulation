@@ -198,15 +198,18 @@ def e2e_sim_production(det_names_file,isimstart,nsims):
             obs_multitod.tod_wn           = np.zeros_like(obs_multitod.tod_cmb)
             obs_multitod.tod_dip          = np.zeros_like(obs_multitod.tod_cmb)
         else:
-            if(isim==1 and skip): #if you did sim0000 and passed to sim0001
-                obs_multitod.tod_fg           = np.array([], dtype='float32')
-                obs_multitod.tod_wn_1f_100mHz = np.array([], dtype='float32')
-                obs_multitod.tod_wn_1f_30mHz  = np.array([], dtype='float32')
-                obs_multitod.tod_wn           = np.array([], dtype='float32')
-                obs_multitod.tod_dip          = np.array([], dtype='float32')
-            obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod) if(not(skip)) else np.zeros_like(obs_multitod.tod_cmb)
-            if(isim==1 and skip): #if you did sim0000 and passed to sim0001
-                obs_multitod.tod_cmb = np.array([], dtype='float32')
+            if(not(skip)): #if the first sim is not 0000
+                obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod)
+            elif(isim==1): #if you did sim0000 and passed to sim0001
+                obs_multitod.tod_fg                  = np.array([], dtype='float32')
+                obs_multitod.tod_wn_1f_100mHz        = np.array([], dtype='float32')
+                obs_multitod.tod_wn_1f_30mHz         = np.array([], dtype='float32')
+                obs_multitod.tod_wn                  = np.array([], dtype='float32')
+                obs_multitod.tod_dip                 = np.array([], dtype='float32')
+                obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod_cmb)
+                obs_multitod.tod_cmb                 = np.array([], dtype='float32')
+            else: #if you did a sim that is not 0000 and passed to the next one
+                obs_multitod.tod_cmb_fg_wn_1f_100mHz = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
             obs_multitod.tod                     = np.array([], dtype='float32') #not used, to save memory
             obs_multitod.tod_cmb_fg_wn_1f_30mHz  = np.zeros_like(obs_multitod.tod_cmb_fg_wn_1f_100mHz)
 
