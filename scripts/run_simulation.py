@@ -22,32 +22,32 @@ name            = 'sim_from'+isimstart+'to'+isimend+'_'+det_names_file
 #empirical values for nodes and time needed for sims > 0000
 match = channel[0:2]
 if match == 'L1' :
-    nnodese2e   = 4
-    walle2e   = '00:30:00'
+    nnodese2e   = 6
+    walle2e   = '06:00:00'
 if match == 'L2' :
-    nnodese2e   = 2
-    walle2e   = '00:15:00'
+    nnodese2e   = 4
+    walle2e   = '06:00:00'
 if match == 'L3' :
-    nnodese2e   = 4
-    walle2e   = '00:30:00'
+    nnodese2e   = 6
+    walle2e   = '06:00:00'
 if match == 'L4' :
-    nnodese2e   = 4
-    walle2e   = '00:30:00'
+    nnodese2e   = 6
+    walle2e   = '06:00:00'
 if match == 'H1' :
-    nnodese2e   = 7
-    walle2e   = '00:20:00'
+    nnodese2e   = 10
+    walle2e   = '06:00:00'
 if match == 'H2' :
-    nnodese2e   = 7
-    walle2e   = '00:20:00'
+    nnodese2e   = 10
+    walle2e   = '06:00:00'
 if match == 'H3' :
-    nnodese2e   = 10
-    walle2e   = '00:20:00'
+    nnodese2e   = 13
+    walle2e   = '06:00:00'
 if match == 'M1' :
-    nnodese2e   = 10
-    walle2e   = '00:20:00'
-if match == 'M2' :
     nnodese2e   = 14
-    walle2e   = '00:30:00'
+    walle2e   = '06:00:00'
+if match == 'M2' :
+    nnodese2e   = 19
+    walle2e   = '06:00:00'
 
 partition       = '#SBATCH --partition=skl_usr_prod                 #The name of queue to use' if nnodese2e>2 else '#SBATCH --partition=skl_usr_dbg                  #The name of queue to use'
 
