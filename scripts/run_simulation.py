@@ -16,6 +16,7 @@ start_time      = '2030-04-01T00:00:00'
 ntasks_per_node = 48
 sim_days        = 365 #simulated days
 mapmaking_type  = 'binned' #binned, destriper or all
+imo_location    = '/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/' #location of the file schema.json 
 imo_version     = 'v1.3'
 name            = 'sim_from'+isimstart+'to'+isimend+'_'+det_names_file
 
@@ -61,6 +62,7 @@ user_email       = '' #COMPLETE HERE   #your email for notification
 toml_filename = 'e2e_sim_from'+isimstart+'to'+isimend+'_'+det_names_file+'_params'
 with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
     f.write('[general]\n')
+    f.write('imo_location = \''+imo_location+'\'\n')
     f.write('imo_version = \''+imo_version+'\'\n')
     f.write('input_maps_path = \''+input_maps_path+'\'\n')
     f.write('telescope = \''+telescope+'\'\n')
@@ -86,9 +88,9 @@ slurm = '''#!/bin/bash
 #SBATCH --nodes={nnodese2e}                         #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=182000                             #The requested memory per node
+#SBATCH --mem=375300                             #The requested memory per node
 #SBATCH --job-name e2e_{det_names_file}_sim_from{isimstart}to{isimend}                #The job name
-#SBATCH --account=INF23_litebird                 #Project name
+#SBATCH --account=INF25_litebird_1               #Project name
 {partition}
 #SBATCH --mail-type=ALL                          #Send me an email at job start/end
 #SBATCH --mail-user={user_email}                 #User mail address
