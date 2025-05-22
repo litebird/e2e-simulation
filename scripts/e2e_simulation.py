@@ -67,8 +67,10 @@ def e2e_sim_production(toml_filename,
 
         if (first_time):
             #initializing the simulation
-            sim = lbs.Simulation(parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
-                         mpi_comm=comm)
+            sim = lbs.Simulation(
+                parameter_file=os.path.dirname(os.getcwd())+"/ancillary/"+toml_filename+".toml",
+                mpi_comm=comm,
+                )
 
             #extract useful parameters
             imo_version       =     sim.parameters['general']['imo_version']
@@ -112,20 +114,25 @@ def e2e_sim_production(toml_filename,
             #loading the instrument metadata
             inst_info = sim.imo.query('/releases/'+imo_version+'/satellite/'+telescope+'/instrument_info')
 
-            #generating the quaternions of the instrument
-            sim.generate_spin2ecl_quaternions(imo_url='/releases/'+imo_version+'/satellite/scanning_parameters/')
+            sim.set_instrument(
+                lbs.InstrumentInfo.from_imo(
+                imo,
+                f"/releases/{imo_version}/satellite/{telescope}/instrument_info",
+                )
+            )
 
             #loading instrument info
-            inst = lbs.InstrumentInfo(name=telescope, 
-                                      boresight_rotangle_rad=np.deg2rad(inst_info.metadata['boresight_rotangle_deg']),
-                                      spin_boresight_angle_rad=np.deg2rad(inst_info.metadata['spin_boresight_angle_deg']),
-                                      spin_rotangle_rad=np.deg2rad(inst_info.metadata['spin_rotangle_deg']))
+            sim.set_scanning_strategy(
+                imo_url=f"/releases/{imo_version}/satellite/scanning_parameters/"
+            )
     
             #filling dets with info and detquats with quaternions of the detectors in detlist
             dets = []
             for i_det in range(ndet):
-                det = lbs.DetectorInfo.from_imo(url='/releases/'+imo_version+'/satellite/'+telescope+'/'+channels[i_det]+'/'+detnames[i_det]+'/detector_info',
-                                                imo=imo)
+                det = lbs.DetectorInfo.from_imo(
+                    url='/releases/'+imo_version+'/satellite/'+telescope+'/'+channels[i_det]+'/'+detnames[i_det]+'/detector_info',
+                    imo=imo,
+                    )
                 dets.append(det)
 
             if(rank==0):
@@ -135,26 +142,23 @@ def e2e_sim_production(toml_filename,
             comm.barrier()
 
             #create Observation object
-            (obs,) = sim.create_observations(detectors=dets,
-                                             n_blocks_det=1,
-                                             n_blocks_time=size,
-                                             split_list_over_processes=False)
+            sim.create_observations(
+                detectors=dets,
+                n_blocks_det=1,
+                n_blocks_time=size,
+                split_list_over_processes=False,
+            )
 
             comm.barrier()
 
             #hwp specification
-            hwp_radpsec = inst_info.metadata['hwp_rpm']*2*np.pi/60
+            sim.set_hwp(
+                lbs.IdealHWP(
+                sim.instrument.hwp_rpm * 2 * np.pi / 60,
+                ),  # applies hwp rotation angle to the polarization angle
+            )
 
-            #get pointings and store them in obs
-            quaternion_buffer = np.zeros((obs.n_samples, 1, 4))
-            pointings = lbs.pointings.get_pointings(obs,
-                                                    spin2ecliptic_quats=sim.spin2ecliptic_quats,
-                                                    bore2spin_quat=inst.bore2spin_quat,
-                                                    hwp=lbs.IdealHWP(hwp_radpsec),   #applies hwp rotation angle to the polarization angle
-                                                    quaternion_buffer=quaternion_buffer,
-                                                    store_pointings_in_obs=True)     #if True, stores colatitude and longitude in obs.pointings,
-                                                                                     #and the polarization angle in obs.psi
-            del quaternion_buffer
+            sim.prepare_pointings()
 
             if(rank==0):
                 t_point = time.time()
@@ -164,58 +168,31 @@ def e2e_sim_production(toml_filename,
         if(rank==0):
             t_common = time.time()
 
-        obs.tod.fill(0.0)
+        sim.nullify_tod()
 
         comm.barrier()
 
         if(rank==0):
-            #load maps
-            try:
-                same_freq_spec = '' #specify which map to load for channels with the same frequency
-                if freq in [68,78,89]:
-                    if(channels[0][:2]=='L1' or channels[0][:2]=='L2'):
-                        same_freq_spec = 'a'
-                    else:
-                        same_freq_spec = 'b'
-                #read cmb map only
-                maps =  hp.read_map(input_maps_path+'cmb/'+str(isim).zfill(2)+'/'+'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_lens_cmb_postPTEP20220609.fits',
-                                       field=[0,1,2])
-                #read and sum fg map to cmb one
-                maps += hp.read_map(input_maps_path+'all_fg/'                    +'LB_'+telescope+'_'+str(freq)+same_freq_spec+'_all_fg_postPTEP20220609.fits',
-                                       field=[0,1,2])
-            except:
-                print('Error while reading maps for channel',channels[0])
-        else:
-            maps = None
+
+            ###add here map generation
 
         comm.barrier()
 
         #broadcast maps read by rank 0
         maps = comm.bcast(maps, root=0)
             
-        #convert from uK to K #MBNR hard coded...
-        maps *= 1e-6
-
         comm.barrier()
 
-        #fill the TOD
-        lbs.scan_map_in_observations(obs,
-                                     maps,
-                                     input_map_in_galactic=True,
-                                     )
+        #fill_tods if needed
 
-        comm.barrier()
+        #convolution if needed 
 
-        #pessimistic 1/f: set knee frequency and noise specification
-        obs.fknee_mhz = 100
-        obs.fmin_hz   = 1e-5
-        obs.net_ukrts = noises
+        #dipole if needed 
 
-        #pessimistic 1/f: add noise
-        lbs.add_noise_to_observations([obs],
-                                      'one_over_f',
-                                      scale=1,
-                                      )
+        #add noise if needed
+
+
+        #which map?
 
         map_output = lbs.make_bin_map([obs],
                                       nside,
@@ -231,44 +208,6 @@ def e2e_sim_production(toml_filename,
         if(rank==0):
             t_map100 = time.time()
             print('Time for 100mHz map: ', t_map100-t_common)
-
-        comm.barrier()
-
-        obs.tod.fill(0.0)
-
-        #fill the TOD
-        lbs.scan_map_in_observations(obs,
-                                     maps,
-                                     input_map_in_galactic=True,
-                                     )
-
-        del maps
-
-        #realistic 1/f: set knee frequency
-        obs.fknee_mhz = 30
-
-        #realistic 1/f: add noise
-        lbs.add_noise_to_observations([obs],
-                                      'one_over_f',
-                                      scale=1,
-                                      )
-
-        map_output = lbs.make_bin_map([obs],
-                                      nside,
-                                      do_covariance=False,
-                                      output_map_in_galactic=True,
-                                      )
-
-        comm.barrier()
-     
-        if(rank==0):
-            print('Producing map: 30mHz')
-            map_name = 'LB_'+telescope+'_'+channels[0]+'_binned_cmb_fg_wn_1f_030mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
-            hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
-
-        if(rank==0):
-            t_map30 = time.time()
-            print('Time for 100mHz map: ', t_map30 - t_map100)
 
         comm.barrier()
 
