@@ -108,7 +108,7 @@ def e2e_sim_production(toml_filename,
             #get frequency (IMPORTANT: this script should be run with only 1 channel)
             freq = int(channels[0][3:6]) #e.g.: channels[0] = 'L2-050' --> freq = 50
 
-            #number of detectors = raws of {det_names_file}.txt
+            #number of detectors = rows of {det_names_file}.txt
             ndet = np.size(detnames)
 
             #loading the instrument metadata
@@ -173,8 +173,27 @@ def e2e_sim_production(toml_filename,
         comm.barrier()
 
         if(rank==0):
+            Mbsparams = lbs.MbsParameters(
+                make_cmb=sim.parameters['simulation']['want_CMB'],
+                make_fg=sim.parameters['simulation']['want_FG'],
+                seed_cmb=sim.parameters['simulation']['CMB_seed'],
+                fg_models=FG_COMPLEXITIES[sim.parameters['simulation']['FG_model']],
+                gaussian_smooth=np.logical_and(
+                    sim.parameters['simulation']['tod_method'] == 'scan',
+                    sim.parameters['simulation']['want_beam_convolve']
+                ),
+                bandpass_int=sim.parameters['simulation']['want_BP_integration'],
+                nside=nside,
+                units="K_CMB",
+                maps_in_ecliptic=False,
+            )
 
-            ###add here map generation
+            mbs = lbs.Mbs(
+                simulation=sim,
+                parameters=Mbsparams,
+                detector_list = dets
+            )
+            maps = mbs.run_all()[0]
 
         comm.barrier()
 
