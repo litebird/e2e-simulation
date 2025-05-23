@@ -306,6 +306,56 @@ def e2e_sim_production(toml_filename,
             if sim.parameters['simulation']['save_invcovpp']:
                 field_names += ['II', 'IQ', 'IU', 'QQ', 'QU', 'UU']
                 pass # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
+            
+            if(rank==0):
+                components_label = get_components_label(sim.parameters)
+                if isinstance(mapmaking_label, list):
+                    for map_label in mapmaking_label:
+                        map_name = 'LB_' + telescope + '_' + channels[0] + map_label + components_label+ '_' + mission_time_days + 'd' + '_'+str(isim).zfill(4)
+                        coords = map_output[map_label.replace('_', '')].coordinate_system
+                        sim.write_healpix_map(
+                            map_path + map_name + '.fits',
+                            map_output[map_label.replace('_', '')].GLS_maps,
+                            column_names=field_names,
+                            coord=coords,
+                            overwrite=True,
+                        )
+                else:
+                    map_name = 'LB_' + telescope + '_' + channels[0] + mapmaking_label + components_label + '_' + mission_time_days + 'd' + '_' + str(isim).zfill(4)
+                    coords = map_output.coordinate_system
+                    sim.write_healpix_map(
+                        map_path + map_name + '.fits',
+                        map_output.GLS_maps,
+                        column_names=field_names,
+                        coord=coords,
+                        overwrite=True,
+                    )
+            if(rank==0):
+                t_maps = time.time()
+                print('Time for maps: ', t_maps-t_common)
+
         comm.barrier()
 
         first_time = False
+
+def get_components_label(parameters):
+    label = ''
+    if parameters['simulation']['want_CMB']:
+        label += '_cmb'
+    if parameters['simulation']['want_FG']:
+        label += '_fg'
+    if parameters['simulation']['want_BP_integration']:
+        label += '_bp'
+    if parameters['simulation']['want_dipole_signal']:
+        label += '_dipole'
+    if parameters['simulation']['want_beam_convolve']:
+        label += '_beamconv'
+    if parameters['simulation']['noise']:
+        label += NOISE_LABELS.get(parameters['simulation']['noise'])
+    if parameters['simulation']['want_2f']:
+        label += '_2f'
+    if parameters['simulation']['want_non_linearity']:
+        label += '_nonlin'
+    if parameters['simulation']['want_gain_drift']:
+        label += '_gaindrift'
+    return label
