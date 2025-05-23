@@ -261,7 +261,7 @@ def e2e_sim_production(toml_filename,
             sim.add_noise(
                 noise_type=sim.parameters['simulation']['noise']
             )
-            # TODO! if one_over_f is chosen, the MPI tasks may be assigned a short time chunk on which the 1/f is not correctly described. In other words, you cut the correlation length artificially.
+            # TODO! if one_over_f is chosen, the MPI tasks may be assigned a short time chunk, on which the 1/f is not correctly described. In other words, you cut the correlation length artificially (if the number of time blocks is bigger than one, the i/f noise across time chunks is discontinuous.)
 
         comm.barrier()
 
@@ -277,6 +277,7 @@ def e2e_sim_production(toml_filename,
 
         if sim.parameters['simulation']['want_gain_drift']:
             sim.apply_gaindrift(user_seed=sim.random_seed)
+            # TODO! Same as 1/f noise, see above.
 
         comm.barrier()
 
