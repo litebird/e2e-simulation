@@ -8,6 +8,18 @@ from typing import Union
 from pathlib import Path
 import os
 import sys
+import brahmap
+
+
+FG_COMPLEXITIES = {
+    'low_complexity': ['pysm_ame_1','pysm_co_1','pysm_freefree_1','pysm_dust_1','pysm_synch_1'],
+    'high_complexity': ['pysm_ame_1','pysm_co_3','pysm_freefree_1','pysm_dust_10','pysm_synch_5'],
+}
+
+NOISE_LABELS = {
+    'white': '_wn',
+    'one_over_f': '_wn_1f',
+}
 
 
 def e2e_sim_production(toml_filename,
