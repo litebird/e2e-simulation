@@ -238,22 +238,35 @@ def e2e_sim_production(toml_filename,
 
         comm.barrier()
 
-        #which map?
+        # TODO! figure out correct order in which to apply effects!
 
-        map_output = lbs.make_bin_map([obs],
-                                      nside,
-                                      do_covariance=False,
-                                      output_map_in_galactic=True,
-                                      )
-            
-        if(rank==0):
-            print('Producing map: 100mHz')
-            map_name = 'LB_'+telescope+'_'+channels[0]+'_binned_cmb_fg_wn_1f_100mHz_'+mission_time_days+'d'+'_'+str(isim).zfill(4)
-            hp.write_map(map_path+map_name+'.fits',map_output,overwrite=True)
+        if sim.parameters['simulation']['want_dipole_signal']:
+            sim.add_dipole()
 
-        if(rank==0):
-            t_map100 = time.time()
-            print('Time for 100mHz map: ', t_map100-t_common)
+        comm.barrier()
+
+        if sim.parameters['simulation']['noise']:
+            sim.add_noise(
+                noise_type=sim.parameters['simulation']['noise']
+            )
+            # TODO! if one_over_f is chosen, the MPI tasks may be assigned a short time chunk on which the 1/f is not correctly described. In other words, you cut the correlation length artificially.
+
+        comm.barrier()
+
+        if sim.parameters['simulation']['want_2f']:
+            sim.add_2f()
+
+        comm.barrier()
+
+        if sim.parameters['simulation']['want_non_linearity']:
+            sim.apply_quadratic_nonlin()
+
+        comm.barrier()
+
+        if sim.parameters['simulation']['want_gain_drift']:
+            sim.apply_gaindrift(user_seed=sim.random_seed)
+
+        comm.barrier()
 
         comm.barrier()
 
