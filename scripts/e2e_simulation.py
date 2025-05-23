@@ -268,6 +268,44 @@ def e2e_sim_production(toml_filename,
 
         comm.barrier()
 
+        mapmaking_type = sim.parameters['simulation']['mapmaking_type']
+        if mapmaking_type:
+            field_names = ["I", "Q", "U"]
+            if mapmaking_type in ['all', 'binned']:
+                binned_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
+            if mapmaking_type in ['all', 'brahmap']:
+                brahmap_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
+                # TODO! Change operator to circulant matrix hen it is available from BrahMap
+
+            if mapmaking_type == 'binned':
+                map_output = sim.make_brahmap_gls_map(
+                nside=nside,
+                inv_noise_cov=binned_inv_cov,
+                )
+                mapmaking_label = '_binned'
+
+            if mapmaking_type == 'brahmap':
+                map_output = sim.make_brahmap_gls_map(
+                nside=nside,
+                inv_noise_cov=brahmap_inv_cov,
+                )
+                mapmaking_label = '_brahmap'
+
+            if mapmaking_type == 'all':
+                map_output = {}
+                map_output['binned'] = sim.make_brahmap_gls_map(
+                    nside=nside,
+                    inv_noise_cov=binned_inv_cov,
+                    )
+                map_output['brahmap'] = sim.make_brahmap_gls_map(
+                    nside=nside,
+                    inv_noise_cov=brahmap_inv_cov,
+                    )
+                mapmaking_label = ['_binned', '_brahmap']
+
+            if sim.parameters['simulation']['save_invcovpp']:
+                field_names += ['II', 'IQ', 'IU', 'QQ', 'QU', 'UU']
+                pass # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
         comm.barrier()
 
         first_time = False
