@@ -202,14 +202,41 @@ def e2e_sim_production(toml_filename,
             
         comm.barrier()
 
-        #fill_tods if needed
+        if (
+            sim.parameters['simulation']['tod_method'] == 'convolution' and
+            sim.parameters['simulation']['want_beam_convolve']
+        ):
+            blms = lbs.generate_gauss_beam_alms(
+                observation=sim.observations,
+                lmax=Mbsparams.lmax_alms,
+                mmax=Mbsparams.lmax_alms,
+            )
 
-        #convolution if needed 
+            Convparams = lbs.BeamConvolutionParameters(
+                lmax=Mbsparams.lmax_alms,
+                mmax=Mbsparams.lmax_alms,
+                single_precision=False,
+                epsilon=1e-5,
+            )
 
-        #dipole if needed 
+            alms = {}
+            for k, mapp in maps.items():
+                alm = hp.map2alm(mapp, lmax=Mbsparams.lmax_alms, iter=0)
+                alms[k] = lbs.SphericalHarmonics(
+                    values=alm,
+                    lmax=Mbsparams.lmax_alms,
+                    mmax=Mbsparams.lmax_alms,
+                )
 
-        #add noise if needed
+            sim.convolve_sky(
+                sky_alms=alms,
+                beam_alms=blms,
+                BeamConvolutionParameters=Convparams,
+            )
+        else:
+            sim.fill_tods(maps)
 
+        comm.barrier()
 
         #which map?
 
