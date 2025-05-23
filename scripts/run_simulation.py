@@ -6,29 +6,35 @@ import sys
 #python run_simulation.py 0 1 LFT L2-050 >> job_id.txt
 
 #parameters
-isimstart       = sys.argv[1].zfill(4) #from which simulation to start
-isimend         = sys.argv[2].zfill(4) #last sim
-telescope       = sys.argv[3] #e.g. 'LFT'
-channel         = sys.argv[4] #e.g. 'L2-050'
-det_names_file  = 'detectors_'+telescope+'_'+channel+'_T+B'
-nside           = 512
-start_time      = '2034-04-01T00:00:00'
-ntasks_per_node = 48
-sim_days        = 365 #simulated days
-BP_integration  = False
-want_CMB        = True
-want_FG         = True
-FG_model        = 
-#['pysm_ame_1','pysm_co_1','pysm_freefree_1','pysm_dust_1','pysm_synch_1'] 
-#['pysm_ame_1','pysm_co_3','pysm_freefree_1','pysm_dust_10','pysm_synch_5']
-tod_method      = 'scan' # convolution
-dipole_signal   = False
-noise           = 'white' # one_over_f or False
-mapmaking_type  = 'binned' #brahmap or all or False
-save_tod        = False
-imo_location    = '/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/' #location of the file schema.json 
-imo_version     = 'v1.3'
-name            = 'sim_from'+isimstart+'to'+isimend+'_'+det_names_file
+#general
+isimstart           = sys.argv[1].zfill(4) #from which simulation to start
+isimend             = sys.argv[2].zfill(4) #last sim
+telescope           = sys.argv[3] #e.g. 'LFT'
+channel             = sys.argv[4] #e.g. 'L2-050'
+det_names_file      = 'detectors_'+telescope+'_'+channel+'_T+B'
+nside               = 512
+ntasks_per_node     = 48
+mapmaking_type      = 'binned' #brahmap or all or False
+#simulation
+start_time          = '2034-04-01T00:00:00'
+sim_days            = 365 #simulated days
+want_CMB            = True
+want_FG             = True
+want_BP_integration = False
+want_dipole_signal  = False
+want_beam_convolve  = True
+want_2f             = False
+want_non_linearity  = False
+want_gain_drift     = False
+CMB_seed            = 1234
+FG_model            = 'low_complexity' # high_complexity
+tod_method          = 'scan' # convolution
+noise               = 'white' # one_over_f or False
+save_tod            = False
+save_invcovpp       = False
+imo_location        = '/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/' #location of the file schema.json 
+imo_version         = 'v1.3'
+name                = 'sim_from'+isimstart+'to'+isimend+'_'+det_names_file
 
 #empirical values for nodes and time needed for sims > 0000
 match = channel[0:2]
@@ -65,6 +71,7 @@ partition       = '#SBATCH --partition=skl_usr_prod                 #The name of
 #paths
 coderoot         = '' #COMPLETE HERE   #folder where e2e_simulation.py is stored
 base_path_prefix = '/my/path/litebird/e2e_ns'+str(nside)+'/' #COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
+base_path = coderoot+base_path_prefix
 input_maps_path  = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
 user_email       = '' #COMPLETE HERE   #your email for notification
 
@@ -85,10 +92,20 @@ with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
     f.write('base_path = \''+base_path+'\'\n')
     f.write('start_time = \''+start_time+'\'\n')
     f.write('duration_s = \''+str(sim_days)+' days\'\n')
-    f.write('BP_integration = \''+str(BP_integration)+'\'\n')
     f.write('want_CMB = \''+str(want_CMB)+'\'\n')
     f.write('want_FG = \''+str(want_FG)+'\'\n')
-    f.write('duration_s = \''+str(sim_days)+' days\'\n')
+    f.write('want_BP_integration = \''+str(want_BP_integration)+'\'\n')
+    f.write('want_dipole_signal = \''+str(want_dipole_signal)+'\'\n')
+    f.write('want_beam_convolve = \''+str(want_beam_convolve)+'\'\n')
+    f.write('want_2f = \''+str(want_2f)+'\'\n')
+    f.write('want_non_linearity = \''+str(want_non_linearity)+'\'\n')
+    f.write('want_gain_drift = \''+str(want_gain_drift)+'\'\n')
+    f.write('CMB_seed = '+str(CMB_seed)+'\n')
+    f.write('FG_model = \''+str(FG_model)+'\'\n')
+    f.write('tod_method = \''+tod_method+'\'\n')
+    f.write('noise = \''+noise+'\'\n')
+    f.write('save_tod = \''+str(save_tod)+'\'\n')
+    f.write('save_invcovpp = \''+str(save_invcovpp)+'\'\n')
 
 
 
