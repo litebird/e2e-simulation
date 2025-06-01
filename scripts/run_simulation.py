@@ -2,121 +2,133 @@ import numpy as np
 import subprocess
 import sys
 
-#command line example (collecting jobs' id in job_id.txt file):
-#python run_simulation.py 0 1 LFT L2-050 >> job_id.txt
+# command line example (collecting jobs' id in job_id.txt file):
+# python run_simulation.py 0 1 LFT L2-050 >> job_id.txt
 
-#parameters
-#general
-isimstart           = sys.argv[1].zfill(4) #from which simulation to start
-isimend             = sys.argv[2].zfill(4) #last sim
-telescope           = sys.argv[3] #e.g. 'LFT'
-channel             = sys.argv[4] #e.g. 'L2-050'
-det_names_file      = 'detectors_'+telescope+'_'+channel+'_T+B'
-nside               = 512
-ntasks_per_node     = 48
-mapmaking_type      = 'binned' #brahmap or all or False
-#simulation
-start_time          = '2034-04-01T00:00:00'
-sim_days            = 365 #simulated days
-want_CMB            = True
-want_FG             = True
+# parameters
+# general
+isimstart = sys.argv[1].zfill(4)  # from which simulation to start
+isimend = sys.argv[2].zfill(4)  # last sim
+telescope = sys.argv[3]  # e.g. 'LFT'
+channel = sys.argv[4]  # e.g. 'L2-050'
+det_names_file = "detectors_" + telescope + "_" + channel + "_T+B"
+nside = 512
+ntasks_per_node = 48
+mapmaking_type = "binned"  # brahmap or all or False
+# simulation
+start_time = "2034-04-01T00:00:00"
+sim_days = 365  # simulated days
+want_CMB = True
+CMB_seed = 1234
+want_FG = True
+FG_model = "low_complexity"  # high_complexity
 want_BP_integration = False
-want_dipole_signal  = False
-want_beam_convolve  = True
-want_2f             = False
-want_non_linearity  = False
-want_gain_drift     = False
-CMB_seed            = 1234
-FG_model            = 'low_complexity' # high_complexity
-tod_method          = 'scan' # convolution
-noise               = 'white' # one_over_f or False
-save_tod            = False
-save_invcovpp       = False
-imo_location        = '/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/' #location of the file schema.json 
-imo_version         = 'v1.3'
-name                = 'sim_from'+isimstart+'to'+isimend+'_'+det_names_file
+want_dipole_signal = False
+want_2f = False
+want_non_linearity = False
+want_gain_drift = False
+tod_method = "scan"  # convolution
+noise = "white"  # one_over_f or False
+save_tod = False
+save_invcovpp = False
+imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
+imo_version = "v1.3"
+name = "sim_from" + isimstart + "to" + isimend + "_" + det_names_file
 
-#empirical values for nodes and time needed for sims > 0000
+# empirical values for nodes and time needed for sims > 0000
 match = channel[0:2]
-if match == 'L1' :
-    nnodese2e   = 6
-    walle2e   = '06:00:00'
-if match == 'L2' :
-    nnodese2e   = 4
-    walle2e   = '06:00:00'
-if match == 'L3' :
-    nnodese2e   = 6
-    walle2e   = '06:00:00'
-if match == 'L4' :
-    nnodese2e   = 6
-    walle2e   = '06:00:00'
-if match == 'H1' :
-    nnodese2e   = 10
-    walle2e   = '06:00:00'
-if match == 'H2' :
-    nnodese2e   = 10
-    walle2e   = '06:00:00'
-if match == 'H3' :
-    nnodese2e   = 13
-    walle2e   = '06:00:00'
-if match == 'M1' :
-    nnodese2e   = 14
-    walle2e   = '06:00:00'
-if match == 'M2' :
-    nnodese2e   = 19
-    walle2e   = '06:00:00'
+if match == "L1":
+    nnodese2e = 6
+    walle2e = "06:00:00"
+if match == "L2":
+    nnodese2e = 4
+    walle2e = "06:00:00"
+if match == "L3":
+    nnodese2e = 6
+    walle2e = "06:00:00"
+if match == "L4":
+    nnodese2e = 6
+    walle2e = "06:00:00"
+if match == "H1":
+    nnodese2e = 10
+    walle2e = "06:00:00"
+if match == "H2":
+    nnodese2e = 10
+    walle2e = "06:00:00"
+if match == "H3":
+    nnodese2e = 13
+    walle2e = "06:00:00"
+if match == "M1":
+    nnodese2e = 14
+    walle2e = "06:00:00"
+if match == "M2":
+    nnodese2e = 19
+    walle2e = "06:00:00"
 
-partition       = '#SBATCH --partition=skl_usr_prod                 #The name of queue to use' if nnodese2e>2 else '#SBATCH --partition=skl_usr_dbg                  #The name of queue to use'
+partition = (
+    "#SBATCH --partition=skl_usr_prod                 #The name of queue to use"
+    if nnodese2e > 2
+    else "#SBATCH --partition=skl_usr_dbg                  #The name of queue to use"
+)
 
-#paths
-coderoot         = '' #COMPLETE HERE   #folder where e2e_simulation.py is stored
-base_path_prefix = '/my/path/litebird/e2e_ns'+str(nside)+'/' #COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
-base_path = coderoot+base_path_prefix
-input_maps_path  = '/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/'
-user_email       = '' #COMPLETE HERE   #your email for notification
+# paths
+coderoot = ""  # COMPLETE HERE   #folder where e2e_simulation.py is stored
+base_path_prefix = (
+    "/my/path/litebird/e2e_ns" + str(nside) + "/"
+)  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
+base_path = coderoot + base_path_prefix
+input_maps_path = "/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/"
+user_email = ""  # COMPLETE HERE   #your email for notification
 
-#create TOML files for e2e_simulation.py for each isim
-toml_filename = 'e2e_sim_from'+isimstart+'to'+isimend+'_'+det_names_file+'_params'
-with open(coderoot+'../ancillary/'+toml_filename+'.toml', 'w') as f:
-    f.write('[general]\n')
-    f.write('imo_location = \''+imo_location+'\'\n')
-    f.write('imo_version = \''+imo_version+'\'\n')
-    f.write('input_maps_path = \''+input_maps_path+'\'\n')
-    f.write('telescope = \''+telescope+'\'\n')
-    f.write('det_names_file = \''+det_names_file+'\'\n')
-    f.write('nside = '+str(nside)+'\n')
-    f.write('mission_time_days = \''+str(sim_days)+'\'\n')
-    f.write('mapmaking_type = \''+mapmaking_type+'\'\n')
-    f.write('[simulation]\n')
-    f.write('name = \''+name+'\'\n')
-    f.write('base_path = \''+base_path+'\'\n')
-    f.write('start_time = \''+start_time+'\'\n')
-    f.write('duration_s = \''+str(sim_days)+' days\'\n')
-    f.write('want_CMB = \''+str(want_CMB)+'\'\n')
-    f.write('want_FG = \''+str(want_FG)+'\'\n')
-    f.write('want_BP_integration = \''+str(want_BP_integration)+'\'\n')
-    f.write('want_dipole_signal = \''+str(want_dipole_signal)+'\'\n')
-    f.write('want_beam_convolve = \''+str(want_beam_convolve)+'\'\n')
-    f.write('want_2f = \''+str(want_2f)+'\'\n')
-    f.write('want_non_linearity = \''+str(want_non_linearity)+'\'\n')
-    f.write('want_gain_drift = \''+str(want_gain_drift)+'\'\n')
-    f.write('CMB_seed = '+str(CMB_seed)+'\n')
-    f.write('FG_model = \''+str(FG_model)+'\'\n')
-    f.write('tod_method = \''+tod_method+'\'\n')
-    f.write('noise = \''+noise+'\'\n')
-    f.write('save_tod = \''+str(save_tod)+'\'\n')
-    f.write('save_invcovpp = \''+str(save_invcovpp)+'\'\n')
-
-
+# create TOML files for e2e_simulation.py for each isim
+toml_filename = (
+    "e2e_sim_from" + isimstart + "to" + isimend + "_" + det_names_file + "_params"
+)
+with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
+    f.write("[general]\n")
+    f.write("imo_location = '" + imo_location + "'\n")
+    f.write("imo_version = '" + imo_version + "'\n")
+    f.write("input_maps_path = '" + input_maps_path + "'\n")
+    f.write("telescope = '" + telescope + "'\n")
+    f.write("det_names_file = '" + det_names_file + "'\n")
+    f.write("nside = " + str(nside) + "\n")
+    f.write("mission_time_days = '" + str(sim_days) + "'\n")
+    f.write("mapmaking_type = '" + mapmaking_type + "'\n")
+    f.write("[simulation]\n")
+    f.write("name = '" + name + "'\n")
+    f.write("base_path = '" + base_path + "'\n")
+    f.write("start_time = '" + start_time + "'\n")
+    f.write("duration_s = '" + str(sim_days) + " days'\n")
+    f.write("want_CMB = '" + str(want_CMB) + "'\n")
+    f.write("CMB_seed = " + str(CMB_seed) + "\n")
+    f.write("want_FG = '" + str(want_FG) + "'\n")
+    f.write("FG_model = '" + str(FG_model) + "'\n")
+    f.write("want_BP_integration = '" + str(want_BP_integration) + "'\n")
+    f.write("want_dipole_signal = '" + str(want_dipole_signal) + "'\n")
+    f.write("want_2f = '" + str(want_2f) + "'\n")
+    f.write("want_non_linearity = '" + str(want_non_linearity) + "'\n")
+    f.write("want_gain_drift = '" + str(want_gain_drift) + "'\n")
+    f.write("tod_method = '" + tod_method + "'\n")
+    f.write("noise = '" + noise + "'\n")
+    f.write("save_tod = '" + str(save_tod) + "'\n")
+    f.write("save_invcovpp = '" + str(save_invcovpp) + "'\n")
 
     f.close()
 
 
+# run e2e_simulation.py
+slurm_e2e = (
+    coderoot
+    + "slurm_e2e_sim_from"
+    + isimstart
+    + "to"
+    + isimend
+    + "_"
+    + det_names_file
+    + ".sl"
+)
 
-#run e2e_simulation.py
-slurm_e2e = coderoot+'slurm_e2e_sim_from'+isimstart+'to'+isimend+'_'+det_names_file+'.sl'
-
-slurm = '''#!/bin/bash
+slurm = """#!/bin/bash
 #SBATCH --time={walle2e}                          #The requested execution time (max time) in hh:mm:ss
 #SBATCH --nodes={nnodese2e}                         #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
@@ -137,22 +149,23 @@ cd {coderoot}
 
 srun --cpu-bind=cores python -c "from e2e_simulation import e2e_sim_production;
 e2e_sim_production('{toml_filename}','{isimstart}','{isimend}')"
-'''
+"""
 
 slurm = slurm.format(**locals())
-f = open(slurm_e2e, 'wt')
+f = open(slurm_e2e, "wt")
 f.write(slurm)
 f.close()
 
-process = subprocess.Popen('sbatch '+slurm_e2e, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+process = subprocess.Popen(
+    "sbatch " + slurm_e2e, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+)
 (stdout_data, stderr_data) = process.communicate()
 
 
-#print useful information
-print(det_names_file+'_sim_from'+isimstart+'to'+isimend+'\n')
+# print useful information
+print(det_names_file + "_sim_from" + isimstart + "to" + isimend + "\n")
 
-print('e2e')
-print('out: '+str(stdout_data).split('b\'')[1][:-3])
-print('err: '+str(stderr_data).split('b\'')[1][:-3])
-print('')
-    
+print("e2e")
+print("out: " + str(stdout_data).split("b'")[1][:-3])
+print("err: " + str(stderr_data).split("b'")[1][:-3])
+print("")
