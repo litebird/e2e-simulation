@@ -10,11 +10,11 @@ import sys
 isimstart = sys.argv[1].zfill(4)  # from which simulation to start
 isimend = sys.argv[2].zfill(4)  # last sim
 channel = sys.argv[3]  # e.g. 'MF1_140'
+telescope = "LMHFT" 
 #Detectors: three possibilities
 #A file with a list of detectors to use
 #The string "all" for using all the detectors in the IMo
 #Integer n for using the first n detectors in the IMo
-telescope = "LMHFT" 
 detectors = "all"
 nside = 512
 ntasks_per_node = 48
@@ -26,55 +26,31 @@ want_CMB = True
 CMB_seed = 1234
 want_FG = True
 FG_model = "low_complexity"  # high_complexity
-want_signal_per_detector = False
+want_signal_per_detector = False # if false generates the same sky for all the detectors
+use_hwp = False
 want_BP_integration = False
 want_dipole_signal = False
 want_2f = False
 want_non_linearity = False
 want_gain_drift = False
 tod_method = "scan"  # convolution
-use_hwp = True
 noise = "white"  # one_over_f or False
 save_tod = False
 save_invcovpp = False
 imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
 imo_version = "v1.3"
+
 name = "sim_from" + isimstart + "to" + isimend + "_" + channel + "_" +str(detectors)
 
-# empirical values for nodes and time needed for sims > 0000
-match = channel[0:2]
-if match == "L1":
+match = channel[0:3]
+if match == "MF1":
     nnodese2e = 6   
-    walle2e = "06:00:00"
-if match == "L2":
-    nnodese2e = 4
-    walle2e = "06:00:00"
-if match == "L3":
-    nnodese2e = 6
-    walle2e = "06:00:00"
-if match == "L4":
-    nnodese2e = 6
-    walle2e = "06:00:00"
-if match == "H1":
-    nnodese2e = 10
-    walle2e = "06:00:00"
-if match == "H2":
-    nnodese2e = 10
-    walle2e = "06:00:00"
-if match == "H3":
-    nnodese2e = 13
-    walle2e = "06:00:00"
-if match == "M1":
-    nnodese2e = 14
-    walle2e = "06:00:00"
-if match == "M2":
-    nnodese2e = 19
     walle2e = "06:00:00"
 
 partition = (
-    "#SBATCH --partition=skl_usr_prod                 #The name of queue to use"
+    "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
     if nnodese2e > 2
-    else "#SBATCH --partition=skl_usr_dbg                  #The name of queue to use"
+    else "#SBATCH --partition=g100_usr_dbg                  #The name of queue to use"
 )
 
 # paths
@@ -96,6 +72,7 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("imo_version = '" + imo_version + "'\n")
     f.write("input_maps_path = '" + input_maps_path + "'\n")
     f.write("telescope = '" + telescope + "'\n")
+    f.write("channel = '" + channel + "'\n")
     f.write("detectors = '" + str(detectors) + "'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("mission_time_days = '" + str(sim_days) + "'\n")
@@ -142,11 +119,9 @@ slurm = """#!/bin/bash
 #SBATCH --error={name}.err
 
 cd {coderoot}
-#export OMP_PROC_BIND=spread
-#export OMP_PLACES=threads
-#export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
-srun --cpu-bind=cores python -c "from e2e_simulation import e2e_sim_production;
+srun python -c "from e2e_simulation import e2e_sim_production;
 e2e_sim_production('{toml_filename}','{isimstart}','{isimend}')"
 """
 
@@ -162,7 +137,7 @@ process = subprocess.Popen(
 
 
 # print useful information
-print(detectors + "_sim_from" + isimstart + "to" + isimend + "\n")
+print(str(detectors) + "_sim_from" + isimstart + "to" + isimend + "\n")
 
 print("e2e")
 print("out: " + str(stdout_data).split("b'")[1][:-3])

@@ -106,6 +106,7 @@ def e2e_sim_production(
             imo_version = sim.parameters["general"]["imo_version"]
             input_maps_path = sim.parameters["general"]["input_maps_path"]
             telescope = sim.parameters["general"]["telescope"]
+            channel = sim.parameters["general"]["channel"]
             detectors = sim.parameters["general"]["detectors"]
             nside = int(sim.parameters["general"]["nside"])
             lmax = int(sim.parameters["general"]["lmax"])
@@ -116,6 +117,18 @@ def e2e_sim_production(
             base_path = sim.parameters["simulation"]["base_path"]
             duration_s = sim.parameters["simulation"]["duration_s"]
             start_time = sim.parameters["simulation"]["start_time"]
+
+            use_hwp = sim.parameters["simulation"]["use_hwp"]
+            want_dipole_signal = sim.parameters["simulation"]["want_dipole_signal"]
+
+            noise = sim.parameters["simulation"]["noise"]
+            want_2f = sim.parameters["simulation"]["want_2f"]
+            want_non_linearity = sim.parameters["simulation"]["want_non_linearity"]
+            want_gain_drift = want_gain_driftsim.parameters["simulation"]["want_gain_drift"]
+
+            mapmaking_type = sim.parameters["simulation"]["mapmaking_type"]
+
+            save_invcovpp = sim.parameters["simulation"]["save_invcovpp"]
 
             # create new base path folder
             if rank == 0:
@@ -128,7 +141,7 @@ def e2e_sim_production(
                 if not os.path.exists(map_path):
                     os.mkdir(map_path)
 
-            
+            # set instrument            
             sim.set_instrument(
                 lbs.InstrumentInfo.from_imo(
                     imo,
@@ -136,11 +149,12 @@ def e2e_sim_production(
                 )
             )
 
-            # loading instrument info
+            # set scanning strategy            
             sim.set_scanning_strategy(
                 imo_url=f"/releases/{imo_version}/satellite/scanning_parameters/"
             )
 
+            # channel           
             chinfo = lbs.FreqChannelInfo.from_imo(
                     url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/channel_info",
                     imo=imo,
@@ -185,11 +199,12 @@ def e2e_sim_production(
             comm.barrier()
 
             # hwp specification
-            sim.set_hwp(
-                lbs.IdealHWP(
-                    sim.instrument.hwp_rpm * 2 * np.pi / 60,
-                ),  # applies hwp rotation angle to the polarization angle
-            )
+            if use_hwp:
+                sim.set_hwp(
+                    lbs.IdealHWP(
+                        sim.instrument.hwp_rpm * 2 * np.pi / 60,
+                    ),  # applies hwp rotation angle to the polarization angle
+                )
 
             sim.prepare_pointings()
 
@@ -257,34 +272,33 @@ def e2e_sim_production(
 
         # TODO! figure out correct order in which to apply effects!
 
-        if sim.parameters["simulation"]["want_dipole_signal"]:
+        if want_dipole_signal:
             sim.add_dipole()
 
         comm.barrier()
 
-        if sim.parameters["simulation"]["noise"]:
-            sim.add_noise(noise_type=sim.parameters["simulation"]["noise"])
+        if noise:
+            sim.add_noise(noise_type=noise)
             # TODO! if one_over_f is chosen, the MPI tasks may be assigned a short time chunk, on which the 1/f is not correctly described. In other words, you cut the correlation length artificially (if the number of time blocks is bigger than one, the i/f noise across time chunks is discontinuous.)
 
         comm.barrier()
 
-        if sim.parameters["simulation"]["want_2f"]:
+        if want_2f:
             sim.add_2f()
 
         comm.barrier()
 
-        if sim.parameters["simulation"]["want_non_linearity"]:
+        if want_non_linearity:
             sim.apply_quadratic_nonlin()
 
         comm.barrier()
 
-        if sim.parameters["simulation"]["want_gain_drift"]:
+        if want_gain_drift:
             sim.apply_gaindrift(user_seed=sim.random_seed)
             # TODO! Same as 1/f noise, see above.
 
         comm.barrier()
 
-        mapmaking_type = sim.parameters["simulation"]["mapmaking_type"]
         if mapmaking_type:
             field_names = ["I", "Q", "U"]
             if mapmaking_type in ["all", "binned"]:
@@ -319,7 +333,7 @@ def e2e_sim_production(
                 )
                 mapmaking_label = ["_binned", "_brahmap"]
 
-            if sim.parameters["simulation"]["save_invcovpp"]:
+            if save_invcovpp:
                 field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
                 pass  # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
 
@@ -327,19 +341,7 @@ def e2e_sim_production(
                 components_label = get_components_label(sim.parameters)
                 if isinstance(mapmaking_label, list):
                     for map_label in mapmaking_label:
-                        map_name = (
-                            "LB_"
-                            + telescope
-                            + "_"
-                            + channels[0]
-                            + map_label
-                            + components_label
-                            + "_"
-                            + mission_time_days
-                            + "d"
-                            + "_"
-                            + str(isim).zfill(4)
-                        )
+                        map_name = "LB_"+telescope+"_"+channel+map_label+components_label+"_"+mission_time_days+"d"+"_"+str(isim).zfill(4)
                         coords = map_output[
                             map_label.replace("_", "")
                         ].coordinate_system
@@ -351,19 +353,7 @@ def e2e_sim_production(
                             overwrite=True,
                         )
                 else:
-                    map_name = (
-                        "LB_"
-                        + telescope
-                        + "_"
-                        + channels[0]
-                        + mapmaking_label
-                        + components_label
-                        + "_"
-                        + mission_time_days
-                        + "d"
-                        + "_"
-                        + str(isim).zfill(4)
-                    )
+                    map_name = "LB_"+telescope+"_"+channel+mapmaking_label+components_label+"_"+mission_time_days+"d"+"_"+str(isim).zfill(4)
                     coords = map_output.coordinate_system
                     sim.write_healpix_map(
                         map_path + map_name + ".fits",
