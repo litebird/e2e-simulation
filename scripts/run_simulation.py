@@ -9,36 +9,42 @@ import sys
 # general
 isimstart = sys.argv[1].zfill(4)  # from which simulation to start
 isimend = sys.argv[2].zfill(4)  # last sim
-telescope = sys.argv[3]  # e.g. 'LFT'
-channel = sys.argv[4]  # e.g. 'L2-050'
-det_names_file = "detectors_" + telescope + "_" + channel + "_T+B"
+channel = sys.argv[3]  # e.g. 'MF1_140'
+#Detectors: three possibilities
+#A file with a list of detectors to use
+#The string "all" for using all the detectors in the IMo
+#Integer n for using the first n detectors in the IMo
+telescope = "LMHFT" 
+detectors = "all"
 nside = 512
 ntasks_per_node = 48
 mapmaking_type = "binned"  # brahmap or all or False
 # simulation
-start_time = "2034-04-01T00:00:00"
+start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
 sim_days = 365  # simulated days
 want_CMB = True
 CMB_seed = 1234
 want_FG = True
 FG_model = "low_complexity"  # high_complexity
+want_signal_per_detector = False
 want_BP_integration = False
 want_dipole_signal = False
 want_2f = False
 want_non_linearity = False
 want_gain_drift = False
 tod_method = "scan"  # convolution
+use_hwp = True
 noise = "white"  # one_over_f or False
 save_tod = False
 save_invcovpp = False
 imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
 imo_version = "v1.3"
-name = "sim_from" + isimstart + "to" + isimend + "_" + det_names_file
+name = "sim_from" + isimstart + "to" + isimend + "_" + channel + "_" +str(detectors)
 
 # empirical values for nodes and time needed for sims > 0000
 match = channel[0:2]
 if match == "L1":
-    nnodese2e = 6
+    nnodese2e = 6   
     walle2e = "06:00:00"
 if match == "L2":
     nnodese2e = 4
@@ -82,7 +88,7 @@ user_email = ""  # COMPLETE HERE   #your email for notification
 
 # create TOML files for e2e_simulation.py for each isim
 toml_filename = (
-    "e2e_sim_from" + isimstart + "to" + isimend + "_" + det_names_file + "_params"
+    "e2e_" + name + "_params"
 )
 with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("[general]\n")
@@ -90,7 +96,7 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("imo_version = '" + imo_version + "'\n")
     f.write("input_maps_path = '" + input_maps_path + "'\n")
     f.write("telescope = '" + telescope + "'\n")
-    f.write("det_names_file = '" + det_names_file + "'\n")
+    f.write("detectors = '" + str(detectors) + "'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("mission_time_days = '" + str(sim_days) + "'\n")
     f.write("mapmaking_type = '" + mapmaking_type + "'\n")
@@ -103,12 +109,14 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("CMB_seed = " + str(CMB_seed) + "\n")
     f.write("want_FG = '" + str(want_FG) + "'\n")
     f.write("FG_model = '" + str(FG_model) + "'\n")
+    f.write("want_signal_per_detector = '" + str(want_signal_per_detector) + "'\n")
     f.write("want_BP_integration = '" + str(want_BP_integration) + "'\n")
     f.write("want_dipole_signal = '" + str(want_dipole_signal) + "'\n")
     f.write("want_2f = '" + str(want_2f) + "'\n")
     f.write("want_non_linearity = '" + str(want_non_linearity) + "'\n")
     f.write("want_gain_drift = '" + str(want_gain_drift) + "'\n")
     f.write("tod_method = '" + tod_method + "'\n")
+    f.write("use_hwp = '" + str(use_hwp) + "'\n")
     f.write("noise = '" + noise + "'\n")
     f.write("save_tod = '" + str(save_tod) + "'\n")
     f.write("save_invcovpp = '" + str(save_invcovpp) + "'\n")
@@ -117,30 +125,21 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
 
 
 # run e2e_simulation.py
-slurm_e2e = (
-    coderoot
-    + "slurm_e2e_sim_from"
-    + isimstart
-    + "to"
-    + isimend
-    + "_"
-    + det_names_file
-    + ".sl"
-)
+slurm_e2e = coderoot + "slurm_" + name + ".sl" 
 
 slurm = """#!/bin/bash
-#SBATCH --time={walle2e}                          #The requested execution time (max time) in hh:mm:ss
-#SBATCH --nodes={nnodese2e}                         #The number of requested nodes
+#SBATCH --time={walle2e}                         #The requested execution time (max time) in hh:mm:ss
+#SBATCH --nodes={nnodese2e}                      #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=375300                             #The requested memory per node
-#SBATCH --job-name e2e_{det_names_file}_sim_from{isimstart}to{isimend}                #The job name
+#SBATCH --job-name={name}                        #The job name
 #SBATCH --account=INF25_litebird_1               #Project name
 {partition}
 #SBATCH --mail-type=ALL                          #Send me an email at job start/end
 #SBATCH --mail-user={user_email}                 #User mail address
-#SBATCH --output={det_names_file}_sim_from{isimstart}to{isimend}.out
-#SBATCH --error={det_names_file}_sim_from{isimstart}to{isimend}.err
+#SBATCH --output={name}.out
+#SBATCH --error={name}.err
 
 cd {coderoot}
 #export OMP_PROC_BIND=spread
@@ -163,7 +162,7 @@ process = subprocess.Popen(
 
 
 # print useful information
-print(det_names_file + "_sim_from" + isimstart + "to" + isimend + "\n")
+print(detectors + "_sim_from" + isimstart + "to" + isimend + "\n")
 
 print("e2e")
 print("out: " + str(stdout_data).split("b'")[1][:-3])

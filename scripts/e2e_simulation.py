@@ -33,6 +33,12 @@ NOISE_LABELS = {
     "one_over_f": "_wn_1f",
 }
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 def e2e_sim_production(
     toml_filename,
@@ -100,7 +106,7 @@ def e2e_sim_production(
             imo_version = sim.parameters["general"]["imo_version"]
             input_maps_path = sim.parameters["general"]["input_maps_path"]
             telescope = sim.parameters["general"]["telescope"]
-            det_names_file = sim.parameters["general"]["det_names_file"]
+            detectors = sim.parameters["general"]["detectors"]
             nside = int(sim.parameters["general"]["nside"])
             lmax = int(sim.parameters["general"]["lmax"])
             mmax = 4
@@ -122,23 +128,7 @@ def e2e_sim_production(
                 if not os.path.exists(map_path):
                     os.mkdir(map_path)
 
-            # read channel, noise and detector names
-            det_names_file_path = (
-                os.path.dirname(os.getcwd()) + "/ancillary/" + det_names_file + ".txt"
-            )
-            det_file = np.genfromtxt(det_names_file_path, skip_header=1, dtype=str)
-
-            channels = det_file[:, 1]
-            noises = det_file[:, 4].astype(dtype=float)
-            detnames = det_file[:, 5]
-
-            # get frequency (IMPORTANT: this script should be run with only 1 channel)
-            freq = int(channels[0][3:6])  # e.g.: channels[0] = 'L2-050' --> freq = 50
-
-            # number of detectors = rows of {det_names_file}.txt
-            ndet = np.size(detnames)
-
-
+            
             sim.set_instrument(
                 lbs.InstrumentInfo.from_imo(
                     imo,
@@ -151,11 +141,29 @@ def e2e_sim_production(
                 imo_url=f"/releases/{imo_version}/satellite/scanning_parameters/"
             )
 
+            chinfo = lbs.FreqChannelInfo.from_imo(
+                    url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/channel_info",
+                    imo=imo,
+                    )
+
+            freq = chinfo.bandcenter_ghz
+
+            if is_number(detectors):
+                detnames = chinfo.detector_names[0:int(detectors)]
+            elif detectors == "all":
+                detnames = chinfo.detector_names
+            else:
+                det_names_file_path = (
+                        os.path.dirname(os.getcwd()) + "/ancillary/" + det_names_file + ".txt",
+                        )
+                det_file = np.genfromtxt(det_names_file_path, skip_header=1, dtype=str)
+                detnames = det_file[:, 0]
+
             # filling dets with info and detquats with quaternions of the detectors in detlist
             dets = []
-            for i_det in range(ndet):
+            for dn in detnames:
                 det = lbs.DetectorInfo.from_imo(
-                    url='/releases/'+imo_version+'/satellite/'+telescope+'/'+channels[i_det]+'/'+detnames[i_det]+'/detector_info',
+                    url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/{dn}/detector_info",
                     imo=imo,
                     )
                 dets.append(det)
@@ -219,6 +227,7 @@ def e2e_sim_production(
 
         sky = sim.get_sky(
             parameters=Mbsparams,
+            channels=None if sim.parameters["simulation"]["want_signal_per_detector"] else chinfo,
         )
 
         comm.barrier()
