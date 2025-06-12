@@ -9,7 +9,7 @@ import sys
 # general
 isimstart = sys.argv[1].zfill(4)  # from which simulation to start
 isimend = sys.argv[2].zfill(4)  # last sim
-channel = sys.argv[3]  # e.g. 'MF1_140'
+channel = sys.argv[3]  # e.g. 'LF1_40'
 telescope = "LMHFT" 
 #Detectors: three possibilities
 #A file with a list of detectors to use
@@ -40,7 +40,7 @@ noise = "white"  # one_over_f or False
 save_tod = False
 save_invcovpp = False
 imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
-imo_version = "v1.3"
+imo_version = "IMo_vReformationPlan_Option1M"
 
 name = "sim_from" + isimstart + "to" + isimend + "_" + channel + "_" +str(detectors)
 

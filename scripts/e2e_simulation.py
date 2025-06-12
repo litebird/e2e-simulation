@@ -149,18 +149,18 @@ def e2e_sim_production(
             sim.set_instrument(
                 lbs.InstrumentInfo.from_imo(
                     imo,
-                    f"/releases/{imo_version}/satellite/{telescope}/instrument_info",
+                    f"/releases/{imo_version}/LMHFT/instrument_info",
                 )
             )
 
             # set scanning strategy            
             sim.set_scanning_strategy(
-                imo_url=f"/releases/{imo_version}/satellite/scanning_parameters/"
+                imo_url=f"/releases/{imo_version}/Observation/Scanning_Strategy"
             )
 
             # channel           
             chinfo = lbs.FreqChannelInfo.from_imo(
-                    url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/channel_info",
+                    url=f"/releases/{imo_version}/{telescope}/{channel}/channel_info",
                     imo=imo,
                     )
 
@@ -181,7 +181,7 @@ def e2e_sim_production(
             dets = []
             for dn in detnames:
                 det = lbs.DetectorInfo.from_imo(
-                    url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/{dn}/detector_info",
+                    url=f"/releases/{imo_version}/{telescope}/{channel}/{dn}/detector_info",
                     imo=imo,
                     )
                 dets.append(det)
