@@ -16,13 +16,15 @@ telescope = "LMHFT"
 #The string "all" for using all the detectors in the IMo
 #Integer n for using the first n detectors in the IMo
 detectors = "all"
-nside = 512
 ntasks_per_node = 48
 mapmaking_type = "binned"  # brahmap or all or False
 # simulation
 start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
 sim_days = 365  # simulated days
 want_CMB = True
+nside = 512
+lmax = 3*nside-1
+mmax = 4
 CMB_seed = 1234
 want_FG = True
 FG_model = "low_complexity"  # high_complexity
@@ -74,7 +76,6 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("telescope = '" + telescope + "'\n")
     f.write("channel = '" + channel + "'\n")
     f.write("detectors = '" + str(detectors) + "'\n")
-    f.write("nside = " + str(nside) + "\n")
     f.write("mission_time_days = '" + str(sim_days) + "'\n")
     f.write("mapmaking_type = '" + mapmaking_type + "'\n")
     f.write("[simulation]\n")
@@ -82,6 +83,9 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
+    f.write("nside = " + str(nside) + "\n")
+    f.write("lmax = " + str(lmax) + "\n")
+    f.write("mmax = " + str(mmax) + "\n")
     f.write("want_CMB = '" + str(want_CMB) + "'\n")
     f.write("CMB_seed = " + str(CMB_seed) + "\n")
     f.write("want_FG = '" + str(want_FG) + "'\n")

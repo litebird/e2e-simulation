@@ -108,15 +108,17 @@ def e2e_sim_production(
             telescope = sim.parameters["general"]["telescope"]
             channel = sim.parameters["general"]["channel"]
             detectors = sim.parameters["general"]["detectors"]
-            nside = int(sim.parameters["general"]["nside"])
-            lmax = int(sim.parameters["general"]["lmax"])
-            mmax = 4
 
             mission_time_days = sim.parameters["general"]["mission_time_days"]
 
             base_path = sim.parameters["simulation"]["base_path"]
             duration_s = sim.parameters["simulation"]["duration_s"]
             start_time = sim.parameters["simulation"]["start_time"]
+
+            nside = int(sim.parameters["simulation"]["nside"])
+
+            lmax = int(sim.parameters["simulation"]["lmax"])
+            mmax = int(sim.parameters["simulation"]["mmax"])
 
             use_hwp = sim.parameters["simulation"]["use_hwp"]
             want_dipole_signal = sim.parameters["simulation"]["want_dipole_signal"]
@@ -125,6 +127,8 @@ def e2e_sim_production(
             want_2f = sim.parameters["simulation"]["want_2f"]
             want_non_linearity = sim.parameters["simulation"]["want_non_linearity"]
             want_gain_drift = want_gain_driftsim.parameters["simulation"]["want_gain_drift"]
+
+            tod_method = sim.parameters["simulation"]["tod_method"]
 
             mapmaking_type = sim.parameters["simulation"]["mapmaking_type"]
 
@@ -226,7 +230,7 @@ def e2e_sim_production(
             seed_cmb=sim.parameters["simulation"]["CMB_seed"],
             fg_models=FG_COMPLEXITIES[sim.parameters["simulation"]["FG_model"]],
             gaussian_smooth=(
-                True if sim.parameters["simulation"]["tod_method"] == "scan" else False
+                True if tod_method == "scan" else False
             ),
             bandpass_int=sim.parameters["simulation"]["want_BP_integration"],
             nside=nside,
@@ -234,7 +238,7 @@ def e2e_sim_production(
             maps_in_ecliptic=False,
             store_alms=(
                 True
-                if sim.parameters["simulation"]["tod_method"] == "convolution"
+                if tod_method == "convolution"
                 else False
             ),
             lmax_alms=lmax,
@@ -247,7 +251,7 @@ def e2e_sim_production(
 
         comm.barrier()
 
-        if sim.parameters["simulation"]["tod_method"] == "convolution":
+        if tod_method == "convolution":
             blms = sim.get_gauss_beam_alms(
                 lmax=lmax,
                 mmax=mmax,
