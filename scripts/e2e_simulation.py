@@ -82,6 +82,12 @@ def e2e_sim_production(
     if rank == 0:
         print("Doing sim: " + str(isim).zfill(4))
 
+
+    sim = lbs.Simulation(
+        parameter_file=toml_filename,
+        mpi_comm=comm,
+    )
+
     # extract useful parameters
     imo_location = sim.parameters["general"]["imo_location"]
     imo_version = sim.parameters["general"]["imo_version"]
@@ -96,7 +102,7 @@ def e2e_sim_production(
     duration_s = sim.parameters["simulation"]["duration_s"]
     start_time = sim.parameters["simulation"]["start_time"]
 
-    sim_seed = sim.parameters["simulation"]["simulation_seed"]
+    random_seed = sim.parameters["simulation"]["random_seed"]
 
     nside = int(sim.parameters["simulation"]["nside"])
 
@@ -117,18 +123,9 @@ def e2e_sim_production(
 
     save_invcovpp = sim.parameters["simulation"]["save_invcovpp"]
 
+
     # initializing the IMO
     imo = lbs.Imo(flatfile_location=imo_location)
-
-
-    sim = lbs.Simulation(
-        parameter_file=toml_filename,
-        mpi_comm=comm,
-        base_path=base_path,
-        random_seed=sim_seed,
-        imo=imo,
-    )
-
 
     # create new base path folder
     if rank == 0:
@@ -167,9 +164,7 @@ def e2e_sim_production(
     elif detectors == "all":
         detnames = chinfo.detector_names
     else:
-        det_names_file_path = (
-                os.path.dirname(os.getcwd()) + "/ancillary/" + det_names_file + ".txt",
-                )
+        det_names_file_path = det_names_file
         det_file = np.genfromtxt(det_names_file_path, skip_header=1, dtype=str)
         detnames = det_file[:, 0]
 

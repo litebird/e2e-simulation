@@ -42,12 +42,16 @@ save_invcovpp = False
 imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
 imo_version = "IMo_vReformationPlan_Option1M"
 
-name = "sim_from" + isimstart + "to" + isimend + "_" + channel + "_" +str(detectors)
+name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" +str(detectors)
+
+nnodese2e = 2
+walle2e = "00:30:00"
 
 match = channel[0:3]
 if match == "MF1":
     nnodese2e = 6   
     walle2e = "06:00:00"
+
 
 partition = (
     "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
@@ -64,7 +68,7 @@ base_path = coderoot + base_path_prefix
 user_email = ""  # COMPLETE HERE   #your email for notification
 
 # create TOML files for e2e_simulation.py for each isim
-coderoot + "../ancillary/" + "e2e_" + name + "_params" + ".toml"
+toml_filename = coderoot + "params/" + "e2e_" + name + "_params" + ".toml"
 
 with open(toml_filename, "w") as f:
     f.write("[general]\n")
@@ -79,7 +83,7 @@ with open(toml_filename, "w") as f:
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("simulation_seed = '" + simulation_seed + "'\n")
+    f.write("simulation_seed = '" + str(simulation_seed) + "'\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
