@@ -18,7 +18,6 @@ telescope = "LMHFT"
 #Integer n for using the first n detectors in the IMo
 detectors = "all"
 ntasks_per_node = 48
-mapmaking_type = "binned"  # brahmap or all or False
 # simulation
 start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
 sim_days = 365  # simulated days
@@ -42,6 +41,7 @@ save_tod = False
 save_invcovpp = False
 imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
 imo_version = "IMo_vReformationPlan_Option1M"
+mapmaking_type = "binned"  # brahmap or all or False
 
 name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" +str(detectors)
 
@@ -62,10 +62,9 @@ partition = (
 
 # paths
 coderoot = ""  # COMPLETE HERE   #folder where e2e_simulation.py is stored
-base_path_prefix = (
+base_path = (
     "/my/path/litebird/e2e_ns" + str(nside) + "/"
 )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
-base_path = coderoot + base_path_prefix
 user_email = ""  # COMPLETE HERE   #your email for notification
 
 # create TOML files for e2e_simulation.py for each isim
@@ -79,12 +78,11 @@ with open(toml_filename, "w") as f:
     f.write("channel = '" + channel + "'\n")
     f.write("detectors = '" + str(detectors) + "'\n")
     f.write("mission_time_days = '" + str(sim_days) + "'\n")
-    f.write("mapmaking_type = '" + mapmaking_type + "'\n")
     f.write("[simulation]\n")
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("simulation_seed = '" + str(simulation_seed) + "'\n")
+    f.write("random_seed = '" + str(simulation_seed) + "'\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
@@ -104,6 +102,7 @@ with open(toml_filename, "w") as f:
     f.write("noise = '" + noise + "'\n")
     f.write("save_tod = '" + str(save_tod) + "'\n")
     f.write("save_invcovpp = '" + str(save_invcovpp) + "'\n")
+    f.write("mapmaking_type = '" + mapmaking_type + "'\n")
 
     f.close()
 
@@ -129,7 +128,7 @@ cd {coderoot}
 export OMP_NUM_THREADS=1
 
 srun python -c "from e2e_simulation import e2e_sim_production;
-e2e_sim_production('{toml_filename}','{isim}')"
+e2e_sim_production('{toml_filename}','{isim}','{simulation_seed}')"
 """
 
 slurm = slurm.format(**locals())

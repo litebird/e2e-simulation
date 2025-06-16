@@ -61,7 +61,6 @@ def e2e_sim_production(
 
     toml_filename: string, name of the TOML file where the following parameters are specified:
         imo_version: string, version of the IMO, e.g. 'v1.3';
-        input_maps_path: string, location of the input maps to be scanned;
         telescope: string, telescope name, e.g. 'LFT';
         det_names_file: string, file containing detector names, each one associated with its channel and noise NET.
                         Only and all detectors in this file will be used, e.g. to consider only top
@@ -93,13 +92,12 @@ def e2e_sim_production(
     sim = lbs.Simulation(
         parameter_file=toml_filename,
         mpi_comm=comm,
-        random_seed=seed,
+        random_seed=int(seed),
     )
 
     # extract useful parameters
     imo_location = sim.parameters["general"]["imo_location"]
     imo_version = sim.parameters["general"]["imo_version"]
-    input_maps_path = sim.parameters["general"]["input_maps_path"]
     telescope = sim.parameters["general"]["telescope"]
     channel = sim.parameters["general"]["channel"]
     detectors = sim.parameters["general"]["detectors"]
@@ -123,7 +121,7 @@ def e2e_sim_production(
     noise = sim.parameters["simulation"]["noise"]
     want_2f = sim.parameters["simulation"]["want_2f"]
     want_non_linearity = sim.parameters["simulation"]["want_non_linearity"]
-    want_gain_drift = want_gain_driftsim.parameters["simulation"]["want_gain_drift"]
+    want_gain_drift = sim.parameters["simulation"]["want_gain_drift"]
 
     tod_method = sim.parameters["simulation"]["tod_method"]
 
@@ -157,7 +155,7 @@ def e2e_sim_production(
     # set scanning strategy            
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy.from_imo(
-            url=f"/releases/{imo_version}/Observation/Scanning_Strategy"
+            url=f"/releases/{imo_version}/Observation/Scanning_Strategy",
             imo=imo,
             )
         )
