@@ -8,7 +8,9 @@ import sys
 # parameters
 # general
 isim = sys.argv[1].zfill(4)  # from which simulation to start
-channel = sys.argv[2]  # e.g. 'LF1_40'
+simulation_seed = sys.argv[2]
+
+channel = "LF1_40"  # e.g. 'LF1_40'
 telescope = "LMHFT" 
 #Detectors: three possibilities
 #A file with a list of detectors to use
@@ -20,14 +22,13 @@ mapmaking_type = "binned"  # brahmap or all or False
 # simulation
 start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
 sim_days = 365  # simulated days
-simulation_seed = 5678
 want_CMB = True
 nside = 512
 lmax = 3*nside-1
 mmax = 4
 CMB_seed = 1234
 want_FG = True
-FG_model = "low_complexity"  # high_complexity
+FG_model = "low_complexity"  # medium_complexity, high_complexity
 want_signal_per_detector = False # if false generates the same sky for all the detectors
 use_hwp = False
 want_BP_integration = False

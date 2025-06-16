@@ -14,6 +14,12 @@ import brahmap
 FG_COMPLEXITIES = {
     "low_complexity": [
         "pysm_ame_1",
+        "pysm_freefree_1",
+        "pysm_dust_0",
+        "pysm_synch_0",
+    ],
+    "medium_complexity": [
+        "pysm_ame_1",
         "pysm_co_1",
         "pysm_freefree_1",
         "pysm_dust_1",
@@ -42,7 +48,8 @@ def is_number(s):
 
 def e2e_sim_production(
     toml_filename,
-    isim = 0,
+    isim,
+    seed,
 ):
     """
     This function reads CMB/FG maps, scans them and produces white noise, 1/f noises and cmb dipole.
@@ -86,6 +93,7 @@ def e2e_sim_production(
     sim = lbs.Simulation(
         parameter_file=toml_filename,
         mpi_comm=comm,
+        random_seed=seed,
     )
 
     # extract useful parameters
@@ -148,8 +156,11 @@ def e2e_sim_production(
 
     # set scanning strategy            
     sim.set_scanning_strategy(
-        imo_url=f"/releases/{imo_version}/Observation/Scanning_Strategy"
-    )
+        lbs.SpinningScanningStrategy.from_imo(
+            url=f"/releases/{imo_version}/Observation/Scanning_Strategy"
+            imo=imo,
+            )
+        )
 
     # channel           
     chinfo = lbs.FreqChannelInfo.from_imo(
