@@ -313,14 +313,14 @@ def e2e_sim_production(
         if mapmaking_type == "binned":
             map_output = sim.make_brahmap_gls_map(
                 nside=nside,
-                inv_noise_cov=binned_inv_cov,
+                inv_noise_cov_operator=binned_inv_cov,
             )
             mapmaking_label = "_binned"
 
         if mapmaking_type == "brahmap":
             map_output = sim.make_brahmap_gls_map(
                 nside=nside,
-                inv_noise_cov=brahmap_inv_cov,
+                inv_noise_cov_operator=brahmap_inv_cov,
             )
             mapmaking_label = "_brahmap"
 
@@ -328,17 +328,19 @@ def e2e_sim_production(
             map_output = {}
             map_output["binned"] = sim.make_brahmap_gls_map(
                 nside=nside,
-                inv_noise_cov=binned_inv_cov,
+                inv_noise_cov_operator=binned_inv_cov,
             )
             map_output["brahmap"] = sim.make_brahmap_gls_map(
                 nside=nside,
-                inv_noise_cov=brahmap_inv_cov,
+                inv_noise_cov_operator=brahmap_inv_cov,
             )
             mapmaking_label = ["_binned", "_brahmap"]
 
         if save_invcovpp:
             field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
             pass  # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
+
+        comm.barrier()
 
         if rank == 0:
             components_label = get_components_label(sim.parameters)
@@ -365,6 +367,9 @@ def e2e_sim_production(
                     coord=coords,
                     overwrite=True,
                 )
+
+        comm.barrier()
+
         if rank == 0:
             t_maps = time.time()
             print("Time for maps: ", t_maps - t_common)
@@ -383,7 +388,9 @@ def get_components_label(parameters):
         label += "_bp"
     if parameters["simulation"]["want_dipole_signal"]:
         label += "_dipole"
-    if parameters["simulation"]["want_beam_convolve"]:
+    if parameters["simulation"]["tod_method"] == "scan":
+        label += "_scan"
+    else:
         label += "_beamconv"
     if parameters["simulation"]["noise"]:
         label += NOISE_LABELS.get(parameters["simulation"]["noise"])

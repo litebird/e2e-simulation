@@ -19,7 +19,7 @@ telescope = "LMHFT"
 detectors = "all"
 ntasks_per_node = 48
 # simulation
-start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
+start_time = "2034-04-01T00:00:00" # ``astropy.time.Time``
 sim_days = 365  # simulated days
 want_CMB = True
 nside = 512
