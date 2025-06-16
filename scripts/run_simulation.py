@@ -3,13 +3,12 @@ import subprocess
 import sys
 
 # command line example (collecting jobs' id in job_id.txt file):
-# python run_simulation.py 0 1 LFT L2-050 >> job_id.txt
+# python run_simulation.py 0 LFT L2-050 >> job_id.txt
 
 # parameters
 # general
-isimstart = sys.argv[1].zfill(4)  # from which simulation to start
-isimend = sys.argv[2].zfill(4)  # last sim
-channel = sys.argv[3]  # e.g. 'LF1_40'
+isim = sys.argv[1].zfill(4)  # from which simulation to start
+channel = sys.argv[2]  # e.g. 'LF1_40'
 telescope = "LMHFT" 
 #Detectors: three possibilities
 #A file with a list of detectors to use
@@ -21,6 +20,7 @@ mapmaking_type = "binned"  # brahmap or all or False
 # simulation
 start_time = "2034-04-01T00:00:00" # either a ``float`` or a ``astropy.time.Time``
 sim_days = 365  # simulated days
+simulation_seed = 5678
 want_CMB = True
 nside = 512
 lmax = 3*nside-1
@@ -61,18 +61,15 @@ base_path_prefix = (
     "/my/path/litebird/e2e_ns" + str(nside) + "/"
 )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
 base_path = coderoot + base_path_prefix
-input_maps_path = "/global/cfs/cdirs/litebird/simulations/maps/post_ptep_inputs_20220522/beam_convolved/"
 user_email = ""  # COMPLETE HERE   #your email for notification
 
 # create TOML files for e2e_simulation.py for each isim
-toml_filename = (
-    "e2e_" + name + "_params"
-)
-with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
+coderoot + "../ancillary/" + "e2e_" + name + "_params" + ".toml"
+
+with open(toml_filename, "w") as f:
     f.write("[general]\n")
     f.write("imo_location = '" + imo_location + "'\n")
     f.write("imo_version = '" + imo_version + "'\n")
-    f.write("input_maps_path = '" + input_maps_path + "'\n")
     f.write("telescope = '" + telescope + "'\n")
     f.write("channel = '" + channel + "'\n")
     f.write("detectors = '" + str(detectors) + "'\n")
@@ -82,6 +79,7 @@ with open(coderoot + "../ancillary/" + toml_filename + ".toml", "w") as f:
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
+    f.write("simulation_seed = '" + simulation_seed + "'\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
@@ -126,7 +124,7 @@ cd {coderoot}
 export OMP_NUM_THREADS=1
 
 srun python -c "from e2e_simulation import e2e_sim_production;
-e2e_sim_production('{toml_filename}','{isimstart}','{isimend}')"
+e2e_sim_production('{toml_filename}','{isim}')"
 """
 
 slurm = slurm.format(**locals())
@@ -141,7 +139,7 @@ process = subprocess.Popen(
 
 
 # print useful information
-print(str(detectors) + "_sim_from" + isimstart + "to" + isimend + "\n")
+print(str(detectors) + "_sim_" + isim + "\n")
 
 print("e2e")
 print("out: " + str(stdout_data).split("b'")[1][:-3])
