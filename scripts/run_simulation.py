@@ -4,14 +4,15 @@ import sys
 import numpy as np
 
 # command line example (collecting jobs' id in job_id.txt file):
-# python run_simulation.py 0 LFT L2-050 >> job_id.txt
+# python run_simulation.py 0 LF1_40 1234 >> job_id.txt
 
 # parameters
 # general
-isim = sys.argv[1].zfill(4)  # from which simulation to start
-simulation_seed = sys.argv[2]
+isim = sys.argv[1].zfill(4)  # index of the simulation
+channel = sys.argv[2] # e.g. 'LF1_40'
+simulation_seed = sys.argv[3] # e.g. 1234
 
-channel = "LF1_40"  # e.g. 'LF1_40'
+channel = "LF1_40"  
 telescope = "LMHFT"
 # Detectors: three possibilities
 # A file with a list of detectors to use
@@ -23,10 +24,10 @@ ntasks_per_node = 48
 start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
 sim_days = 365  # simulated days
 want_CMB = True
+CMB_seed = 5678
 nside = 512
 lmax = 3 * nside - 1
 mmax = 4
-CMB_seed = 1234
 want_FG = True
 FG_model = "low_complexity"  # medium_complexity, high_complexity
 want_signal_per_detector = (
@@ -78,33 +79,32 @@ with open(toml_filename, "w") as f:
     f.write("imo_location = '" + imo_location + "'\n")
     f.write("imo_version = '" + imo_version + "'\n")
     f.write("telescope = '" + telescope + "'\n")
-    f.write("channel = '" + channel + "'\n")
     f.write("detectors = '" + str(detectors) + "'\n")
     f.write("mission_time_days = '" + str(sim_days) + "'\n")
     f.write("[simulation]\n")
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("random_seed = '" + str(simulation_seed) + "'\n")
+    f.write("random_seed = " + str(simulation_seed) + "\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
     f.write("mmax = " + str(mmax) + "\n")
-    f.write("want_CMB = '" + str(want_CMB) + "'\n")
+    f.write("want_CMB = "+ str(want_CMB).lower() +"\n")
     f.write("CMB_seed = " + str(CMB_seed) + "\n")
-    f.write("want_FG = '" + str(want_FG) + "'\n")
-    f.write("FG_model = '" + str(FG_model) + "'\n")
-    f.write("want_signal_per_detector = '" + str(want_signal_per_detector) + "'\n")
-    f.write("want_BP_integration = '" + str(want_BP_integration) + "'\n")
-    f.write("want_dipole_signal = '" + str(want_dipole_signal) + "'\n")
-    f.write("want_2f = '" + str(want_2f) + "'\n")
-    f.write("want_non_linearity = '" + str(want_non_linearity) + "'\n")
-    f.write("want_gain_drift = '" + str(want_gain_drift) + "'\n")
+    f.write("want_FG = " + str(want_FG).lower()+ "\n")
+    f.write("FG_model = '" + FG_model + "'\n")
+    f.write("want_signal_per_detector = " + str(want_signal_per_detector).lower() + "\n")
+    f.write("want_BP_integration = " + str(want_BP_integration).lower() + "\n")
+    f.write("want_dipole_signal = " + str(want_dipole_signal).lower() + "\n")
+    f.write("want_2f = " + str(want_2f).lower() + "\n")
+    f.write("want_non_linearity = " + str(want_non_linearity).lower() + "\n")
+    f.write("want_gain_drift = " + str(want_gain_drift).lower() + "\n")
     f.write("tod_method = '" + tod_method + "'\n")
-    f.write("use_hwp = '" + str(use_hwp) + "'\n")
+    f.write("use_hwp = " + str(use_hwp).lower() + "\n")
     f.write("noise = '" + noise + "'\n")
-    f.write("save_tod = '" + str(save_tod) + "'\n")
-    f.write("save_invcovpp = '" + str(save_invcovpp) + "'\n")
+    f.write("save_tod = " + str(save_tod).lower() + "\n")
+    f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
     f.write("mapmaking_type = '" + mapmaking_type + "'\n")
 
     f.close()

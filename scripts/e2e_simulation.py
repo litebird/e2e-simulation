@@ -51,6 +51,7 @@ def is_number(s):
 def e2e_sim_production(
     toml_filename,
     isim,
+    channel,
     seed,
 ):
     """
@@ -79,6 +80,7 @@ def e2e_sim_production(
         duration_s: string, days of observation, e.g. '365 days' (same as mission_time_days but recognized by lbs.Simulation)
 
     isim: int simulation number
+    channel: str channel to simulate
     seed: int random seed
     """
 
@@ -103,16 +105,14 @@ def e2e_sim_production(
     imo_location = sim.parameters["general"]["imo_location"]
     imo_version = sim.parameters["general"]["imo_version"]
     telescope = sim.parameters["general"]["telescope"]
-    channel = sim.parameters["general"]["channel"]
     detectors = sim.parameters["general"]["detectors"]
 
     mission_time_days = sim.parameters["general"]["mission_time_days"]
 
     base_path = sim.parameters["simulation"]["base_path"]
 
-    # duration_s = sim.parameters["simulation"]["duration_s"]
-    # start_time = sim.parameters["simulation"]["start_time"]
-    # random_seed = sim.parameters["simulation"]["random_seed"]
+    duration_s = sim.parameters["simulation"]["duration_s"]
+    start_time = sim.parameters["simulation"]["start_time"]
 
     nside = int(sim.parameters["simulation"]["nside"])
 
@@ -121,6 +121,8 @@ def e2e_sim_production(
 
     use_hwp = sim.parameters["simulation"]["use_hwp"]
     want_dipole_signal = sim.parameters["simulation"]["want_dipole_signal"]
+
+    cmb_seed = sim.parameters["simulation"]["CMB_seed"]
 
     noise = sim.parameters["simulation"]["noise"]
     want_2f = sim.parameters["simulation"]["want_2f"]
@@ -135,6 +137,12 @@ def e2e_sim_production(
 
     # initializing the IMO
     imo = lbs.Imo(flatfile_location=imo_location)
+
+    if rank == 0:
+        print("Mission duration: "+mission_time_days)
+        print("Simulation random seed: "+str(seed))
+        print("CMB random seed: "+str(cmb_seed))
+        print("IMo version: "+imo_version)
 
     # create new base path folder
     if rank == 0:
@@ -232,7 +240,7 @@ def e2e_sim_production(
     Mbsparams = lbs.MbsParameters(
         make_cmb=sim.parameters["simulation"]["want_CMB"],
         make_fg=sim.parameters["simulation"]["want_FG"],
-        seed_cmb=sim.parameters["simulation"]["CMB_seed"],
+        seed_cmb=cmb_seed,
         fg_models=FG_COMPLEXITIES[sim.parameters["simulation"]["FG_model"]],
         gaussian_smooth=(True if tod_method == "scan" else False),
         bandpass_int=sim.parameters["simulation"]["want_BP_integration"],
@@ -339,7 +347,7 @@ def e2e_sim_production(
             mapmaking_label = ["_binned", "_brahmap"]
 
         if save_invcovpp:
-            # field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
+            field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
             pass  # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
 
         comm.barrier()
@@ -361,7 +369,7 @@ def e2e_sim_production(
                         + "_"
                         + str(isim).zfill(4)
                     )
-                    coords = map_output[map_label.replace("_", "")].coordinate_system
+                    coords = lbs.coord_sys_to_healpix_string(map_output[map_label.replace("_", "")].coordinate_system)
                     sim.write_healpix_map(
                         map_path + map_name + ".fits",
                         map_output[map_label.replace("_", "")].GLS_maps,
@@ -383,7 +391,7 @@ def e2e_sim_production(
                     + "_"
                     + str(isim).zfill(4)
                 )
-                coords = map_output.coordinate_system
+                coords = lbs.coord_sys_to_healpix_string(map_output.coordinate_system)
                 sim.write_healpix_map(
                     map_path + map_name + ".fits",
                     map_output.GLS_maps,
