@@ -75,6 +75,9 @@ def e2e_sim_production(
         base_path: string, path where you want to save the maps and observations generated;
         start_time: string, start time of the simulation, e.g. '2030-04-01T00:00:00';
         duration_s: string, days of observation, e.g. '365 days' (same as mission_time_days but recognized by lbs.Simulation)
+
+    isim: int simulation number
+    seed: int random seed
     """
 
     # for parallelization
@@ -376,6 +379,9 @@ def e2e_sim_production(
 
     comm.barrier()
 
+    if rank == 0:
+        t_all = time.time()
+        print("Time for the entire computation: ", t_all - t_common)
 
 
 def get_components_label(parameters):
