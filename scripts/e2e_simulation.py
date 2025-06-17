@@ -230,11 +230,6 @@ def e2e_sim_production(
         t_point = time.time()
         print("Time for pointings: ", t_point - t_sim)
 
-    if rank == 0:
-        t_common = time.time()
-
-    sim.nullify_tod()
-
     comm.barrier()
 
     Mbsparams = lbs.MbsParameters(
@@ -259,6 +254,10 @@ def e2e_sim_production(
     )
 
     comm.barrier()
+    if rank == 0:
+        t_sky_generation = time.time()
+        print("Time for sky generation: ", t_sky_generation - t_point)
+
 
     if tod_method == "convolution":
         blms = sim.get_gauss_beam_alms(
@@ -282,6 +281,10 @@ def e2e_sim_production(
         sim.fill_tods(sky)
 
     comm.barrier()
+    if rank == 0:
+        t_tod = time.time()
+        print("Time for signal: ", t_tod - t_sky_generation)
+
 
     # TODO! figure out correct order in which to apply effects!
 
@@ -310,7 +313,12 @@ def e2e_sim_production(
         sim.apply_gaindrift(user_seed=sim.random_seed)
         # TODO! Same as 1/f noise, see above.
 
+
     comm.barrier()
+    if rank == 0:
+        t_common = time.time()
+        print("Time for other components: ", t_common - t_tod)
+
 
     if mapmaking_type:
         field_names = ["I", "Q", "U"]
@@ -410,7 +418,7 @@ def e2e_sim_production(
 
     if rank == 0:
         t_all = time.time()
-        print("Time for the entire computation: ", t_all - t_common)
+        print("Time for the entire computation: ", t_all - t_in)
 
 def get_components_label(parameters):
     label = ""

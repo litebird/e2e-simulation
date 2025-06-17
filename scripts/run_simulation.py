@@ -29,9 +29,7 @@ lmax = 3 * nside - 1
 mmax = 4
 want_FG = True
 FG_model = "low_complexity"  # medium_complexity, high_complexity
-want_signal_per_detector = (
-    False  # if false generates the same sky for all the detectors
-)
+want_signal_per_detector = False  # if false generates the same sky for all the detectors
 use_hwp = False
 want_BP_integration = False
 want_dipole_signal = False
