@@ -9,10 +9,9 @@ import numpy as np
 # parameters
 # general
 isim = sys.argv[1].zfill(4)  # index of the simulation
-channel = sys.argv[2] # e.g. 'LF1_40'
+channel = sys.argv[2] # e.g. "LF1_40"
 simulation_seed = sys.argv[3] # e.g. 1234
 
-channel = "LF1_40"  
 telescope = "LMHFT"
 # Detectors: three possibilities
 # A file with a list of detectors to use
@@ -52,12 +51,6 @@ name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
 nnodese2e = 2
 walle2e = "00:30:00"
 
-match = channel[0:3]
-if match == "MF1":
-    nnodese2e = 6
-    walle2e = "06:00:00"
-
-
 partition = (
     "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
     if nnodese2e > 2
@@ -85,7 +78,6 @@ with open(toml_filename, "w") as f:
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("random_seed = " + str(simulation_seed) + "\n")
     f.write("duration_s = '" + str(sim_days) + " days'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
@@ -131,7 +123,7 @@ cd {coderoot}
 export OMP_NUM_THREADS=1
 
 srun python -c "from e2e_simulation import e2e_sim_production;
-e2e_sim_production('{toml_filename}','{isim}','{simulation_seed}')"
+e2e_sim_production('{toml_filename}','{isim}','{channel}','{simulation_seed}')"
 """
 
 slurm = slurm.format(**locals())
