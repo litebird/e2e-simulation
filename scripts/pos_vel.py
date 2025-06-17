@@ -1,7 +1,8 @@
+import os
+
 import litebird_sim as lbs
 import numpy as np
 from astropy.time import Time
-import os
 
 # srun python -c "from pos_vel import pos_vel;pos_vel(toml_filename='e2e_sim000_detectors_LFT_L2-050_T+B_params')"
 
