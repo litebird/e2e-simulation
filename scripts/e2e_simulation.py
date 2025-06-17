@@ -164,6 +164,7 @@ def e2e_sim_production(
     chinfo = lbs.FreqChannelInfo.from_imo(
         url=f"/releases/{imo_version}/{telescope}/{channel}/channel_info",
         imo=imo,
+    )
 
     # freq = chinfo.bandcenter_ghz
 
@@ -171,10 +172,13 @@ def e2e_sim_production(
         detnames = chinfo.detector_names[0 : int(detectors)]
     elif detectors == "all":
         detnames = chinfo.detector_names
-    else:
-        det_names_file_path = det_names_file
+    elif isinstance(detectors, str) and os.path.exists(detectors):
+        det_names_file_path = detectors
         det_file = np.genfromtxt(det_names_file_path, skip_header=1, dtype=str)
         detnames = det_file[:, 0]
+    else:
+        msg = "'detectors' is neither an integer, nor the flag 'all', nor a path to a file"
+        raise ValueError(msg)
 
     # filling dets with info and detquats with quaternions of the detectors in detlist
     dets = []
