@@ -1,6 +1,7 @@
-import numpy as np
 import subprocess
 import sys
+
+import numpy as np
 
 # command line example (collecting jobs' id in job_id.txt file):
 # python run_simulation.py 0 LFT L2-050 >> job_id.txt
@@ -11,24 +12,26 @@ isim = sys.argv[1].zfill(4)  # from which simulation to start
 simulation_seed = sys.argv[2]
 
 channel = "LF1_40"  # e.g. 'LF1_40'
-telescope = "LMHFT" 
-#Detectors: three possibilities
-#A file with a list of detectors to use
-#The string "all" for using all the detectors in the IMo
-#Integer n for using the first n detectors in the IMo
+telescope = "LMHFT"
+# Detectors: three possibilities
+# A file with a list of detectors to use
+# The string "all" for using all the detectors in the IMo
+# Integer n for using the first n detectors in the IMo
 detectors = "all"
 ntasks_per_node = 48
 # simulation
-start_time = "2034-04-01T00:00:00" # ``astropy.time.Time``
+start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
 sim_days = 365  # simulated days
 want_CMB = True
 nside = 512
-lmax = 3*nside-1
+lmax = 3 * nside - 1
 mmax = 4
 CMB_seed = 1234
 want_FG = True
 FG_model = "low_complexity"  # medium_complexity, high_complexity
-want_signal_per_detector = False # if false generates the same sky for all the detectors
+want_signal_per_detector = (
+    False  # if false generates the same sky for all the detectors
+)
 use_hwp = False
 want_BP_integration = False
 want_dipole_signal = False
@@ -43,14 +46,14 @@ imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # lo
 imo_version = "IMo_vReformationPlan_Option1M"
 mapmaking_type = "binned"  # brahmap or all or False
 
-name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" +str(detectors)
+name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
 
 nnodese2e = 2
 walle2e = "00:30:00"
 
 match = channel[0:3]
 if match == "MF1":
-    nnodese2e = 6   
+    nnodese2e = 6
     walle2e = "06:00:00"
 
 

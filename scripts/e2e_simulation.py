@@ -1,15 +1,15 @@
-import litebird_sim as lbs
-import numpy as np
-import healpy as hp
-import matplotlib.pylab as plt
-from astropy.time import Time
-import time
-from typing import Union
-from pathlib import Path
 import os
 import sys
-import brahmap
+import time
+from pathlib import Path
+from typing import Union
 
+import brahmap
+import healpy as hp
+import litebird_sim as lbs
+import matplotlib.pylab as plt
+import numpy as np
+from astropy.time import Time
 
 FG_COMPLEXITIES = {
     "low_complexity": [
@@ -39,12 +39,14 @@ NOISE_LABELS = {
     "one_over_f": "_wn_1f",
 }
 
+
 def is_number(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
+
 
 def e2e_sim_production(
     toml_filename,
@@ -88,7 +90,6 @@ def e2e_sim_production(
     if rank == 0:
         print("Doing sim: " + str(isim).zfill(4))
 
-
     sim = lbs.Simulation(
         parameter_file=toml_filename,
         mpi_comm=comm,
@@ -105,10 +106,10 @@ def e2e_sim_production(
     mission_time_days = sim.parameters["general"]["mission_time_days"]
 
     base_path = sim.parameters["simulation"]["base_path"]
-    duration_s = sim.parameters["simulation"]["duration_s"]
-    start_time = sim.parameters["simulation"]["start_time"]
 
-    random_seed = sim.parameters["simulation"]["random_seed"]
+    # duration_s = sim.parameters["simulation"]["duration_s"]
+    # start_time = sim.parameters["simulation"]["start_time"]
+    # random_seed = sim.parameters["simulation"]["random_seed"]
 
     nside = int(sim.parameters["simulation"]["nside"])
 
@@ -129,7 +130,6 @@ def e2e_sim_production(
 
     save_invcovpp = sim.parameters["simulation"]["save_invcovpp"]
 
-
     # initializing the IMO
     imo = lbs.Imo(flatfile_location=imo_location)
 
@@ -144,7 +144,7 @@ def e2e_sim_production(
         if not os.path.exists(map_path):
             os.mkdir(map_path)
 
-    # set instrument            
+    # set instrument
     sim.set_instrument(
         lbs.InstrumentInfo.from_imo(
             imo,
@@ -152,24 +152,23 @@ def e2e_sim_production(
         )
     )
 
-    # set scanning strategy            
+    # set scanning strategy
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy.from_imo(
             url=f"/releases/{imo_version}/Observation/Scanning_Strategy",
             imo=imo,
-            )
         )
+    )
 
-    # channel           
+    # channel
     chinfo = lbs.FreqChannelInfo.from_imo(
-            url=f"/releases/{imo_version}/{telescope}/{channel}/channel_info",
-            imo=imo,
-            )
+        url=f"/releases/{imo_version}/{telescope}/{channel}/channel_info",
+        imo=imo,
 
-    freq = chinfo.bandcenter_ghz
+    # freq = chinfo.bandcenter_ghz
 
     if is_number(detectors):
-        detnames = chinfo.detector_names[0:int(detectors)]
+        detnames = chinfo.detector_names[0 : int(detectors)]
     elif detectors == "all":
         detnames = chinfo.detector_names
     else:
@@ -183,7 +182,7 @@ def e2e_sim_production(
         det = lbs.DetectorInfo.from_imo(
             url=f"/releases/{imo_version}/{telescope}/{channel}/{dn}/detector_info",
             imo=imo,
-            )
+        )
         dets.append(det)
 
     if rank == 0:
@@ -228,24 +227,20 @@ def e2e_sim_production(
         make_fg=sim.parameters["simulation"]["want_FG"],
         seed_cmb=sim.parameters["simulation"]["CMB_seed"],
         fg_models=FG_COMPLEXITIES[sim.parameters["simulation"]["FG_model"]],
-        gaussian_smooth=(
-            True if tod_method == "scan" else False
-        ),
+        gaussian_smooth=(True if tod_method == "scan" else False),
         bandpass_int=sim.parameters["simulation"]["want_BP_integration"],
         nside=nside,
         units="K_CMB",
         maps_in_ecliptic=False,
-        store_alms=(
-            True
-            if tod_method == "convolution"
-            else False
-        ),
+        store_alms=(True if tod_method == "convolution" else False),
         lmax_alms=lmax,
     )
 
     sky = sim.get_sky(
         parameters=Mbsparams,
-        channels=None if sim.parameters["simulation"]["want_signal_per_detector"] else chinfo,
+        channels=None
+        if sim.parameters["simulation"]["want_signal_per_detector"]
+        else chinfo,
     )
 
     comm.barrier()
@@ -308,7 +303,7 @@ def e2e_sim_production(
             binned_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
         if mapmaking_type in ["all", "brahmap"]:
             brahmap_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
-            # TODO! Change operator to circulant matrix hen it is available from BrahMap
+            # TODO! Change operator to circulant matrix when it is available from BrahMap
 
         if mapmaking_type == "binned":
             map_output = sim.make_brahmap_gls_map(
@@ -337,7 +332,7 @@ def e2e_sim_production(
             mapmaking_label = ["_binned", "_brahmap"]
 
         if save_invcovpp:
-            field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
+            # field_names += ["II", "IQ", "IU", "QQ", "QU", "UU"]
             pass  # TODO! (we can use the same trick as in the binner, where we store the 9 elements as extra fields in the .fits file. BrahMap is still not compatible, though it will be soon)
 
         comm.barrier()
@@ -346,10 +341,20 @@ def e2e_sim_production(
             components_label = get_components_label(sim.parameters)
             if isinstance(mapmaking_label, list):
                 for map_label in mapmaking_label:
-                    map_name = "LB_"+telescope+"_"+channel+map_label+components_label+"_"+mission_time_days+"d"+"_"+str(isim).zfill(4)
-                    coords = map_output[
-                        map_label.replace("_", "")
-                    ].coordinate_system
+                    map_name = (
+                        "LB_"
+                        + telescope
+                        + "_"
+                        + channel
+                        + map_label
+                        + components_label
+                        + "_"
+                        + mission_time_days
+                        + "d"
+                        + "_"
+                        + str(isim).zfill(4)
+                    )
+                    coords = map_output[map_label.replace("_", "")].coordinate_system
                     sim.write_healpix_map(
                         map_path + map_name + ".fits",
                         map_output[map_label.replace("_", "")].GLS_maps,
@@ -358,7 +363,19 @@ def e2e_sim_production(
                         overwrite=True,
                     )
             else:
-                map_name = "LB_"+telescope+"_"+channel+mapmaking_label+components_label+"_"+mission_time_days+"d"+"_"+str(isim).zfill(4)
+                map_name = (
+                    "LB_"
+                    + telescope
+                    + "_"
+                    + channel
+                    + mapmaking_label
+                    + components_label
+                    + "_"
+                    + mission_time_days
+                    + "d"
+                    + "_"
+                    + str(isim).zfill(4)
+                )
                 coords = map_output.coordinate_system
                 sim.write_healpix_map(
                     map_path + map_name + ".fits",
@@ -375,7 +392,6 @@ def e2e_sim_production(
             print("Time for maps: ", t_maps - t_common)
 
     comm.barrier()
-
 
 
 def get_components_label(parameters):
