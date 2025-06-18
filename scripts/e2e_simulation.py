@@ -275,7 +275,7 @@ def e2e_sim_production(
         sim.convolve_sky(
             sky_alms=sky,
             beam_alms=blms,
-            BeamConvolutionParameters=Convparams,
+            convolution_params=Convparams,
         )
     else:
         sim.fill_tods(sky)
@@ -322,19 +322,15 @@ def e2e_sim_production(
 
     if mapmaking_type:
         field_names = ["I", "Q", "U"]
-        if mapmaking_type in ["all", "binned"]:
-            binned_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
         if mapmaking_type in ["all", "brahmap"]:
             brahmap_inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
             # TODO! Change operator to circulant matrix when it is available from BrahMap
 
         if mapmaking_type == "binned":
-            map_output = sim.make_brahmap_gls_map(
+            map_output = sim.make_binned_map(
                 nside=nside,
-                inv_noise_cov_operator=binned_inv_cov,
-            )
+                )
             mapmaking_label = "_binned"
-
         if mapmaking_type == "brahmap":
             map_output = sim.make_brahmap_gls_map(
                 nside=nside,
@@ -344,10 +340,9 @@ def e2e_sim_production(
 
         if mapmaking_type == "all":
             map_output = {}
-            map_output["binned"] = sim.make_brahmap_gls_map(
+            map_output["binned"] = sim.make_binned_map(
                 nside=nside,
-                inv_noise_cov_operator=binned_inv_cov,
-            )
+                )
             map_output["brahmap"] = sim.make_brahmap_gls_map(
                 nside=nside,
                 inv_noise_cov_operator=brahmap_inv_cov,
@@ -380,7 +375,7 @@ def e2e_sim_production(
                     coords = lbs.coord_sys_to_healpix_string(map_output[map_label.replace("_", "")].coordinate_system)
                     sim.write_healpix_map(
                         map_path + map_name + ".fits",
-                        map_output[map_label.replace("_", "")].GLS_maps,
+                        map_output[map_label.replace("_", "")].binned_map if map_label == "_binned" else map_output[map_label.replace("_", "")].GLS_maps,
                         column_names=field_names,
                         coord=coords,
                         overwrite=True,
@@ -402,7 +397,7 @@ def e2e_sim_production(
                 coords = lbs.coord_sys_to_healpix_string(map_output.coordinate_system)
                 sim.write_healpix_map(
                     map_path + map_name + ".fits",
-                    map_output.GLS_maps,
+                    map_output.binned_map if mapmaking_label == "_binned" else map_output.GLS_maps,
                     column_names=field_names,
                     coord=coords,
                     overwrite=True,
