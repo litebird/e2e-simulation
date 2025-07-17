@@ -1,0 +1,160 @@
+import subprocess
+import sys
+
+import numpy as np
+
+# command line example (collecting jobs' id in job_id.txt file):
+# python run_simulation_looped.py 0 LF1_40 1234 >> job_id.txt
+
+# parameters
+# general
+telescope = "LMHFT"
+# Detectors: three possibilities
+# A file with a list of detectors to use
+# The string "all" for using all the detectors in the IMo
+# Integer n for using the first n detectors in the IMo
+detectors = 2
+ntasks_per_node = 48
+# simulation
+start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
+sim_days = 365  # simulated days
+want_CMB = True
+CMB_seed = 5678
+nside = 512
+lmax = 3 * nside - 1
+mmax = 4
+want_FG = True
+FG_model = "low_complexity"  # medium_complexity, high_complexity
+want_signal_per_detector = False  # if false generates the same sky for all the detectors
+use_hwp = True
+want_BP_integration = False
+want_dipole_signal = False
+want_2f = False
+want_non_linearity = False
+want_gain_drift = False
+tod_method = "scan"  # convolution
+noise = "white"  # one_over_f or False
+save_tod = False
+save_invcovpp = False
+input_sky_location = "/g100_work/INF25_litebird_1/lpagano0/simteam/generate_inputs/maps/Option2M" # location of the input maps or alms or None
+imo_location = "/g100_work/INF25_litebird_1/martasilvia/IMo_LiteBIRD/Reformation_Plan/option2bM/"  # location of the file schema.json
+imo_version = "IMo_vReformationPlan_Option2M"
+mapmaking_type = "binned"  # brahmap or all or False
+
+isims = [0, 1, ]
+channels = ["MF1_140", "HF2_402", ]
+
+pid = None
+
+for sim_idx in range(len(isims)):
+    #for channel_idx in range(len(channels)):
+
+    isim = isims[sim_idx]
+    channel = channels[0]
+
+    nnodese2e = 2
+    walle2e = "00:30:00"
+
+    partition = (
+        "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
+        if nnodese2e > 2
+        else "#SBATCH --partition=g100_usr_dbg                  #The name of queue to use"
+    )
+
+    # paths
+    coderoot = "/g100_work/INF25_litebird_1/martasilvia/e2e-simulation/scripts/"  # COMPLETE HERE   #folder where e2e_simulation.py is stored
+    base_path = (
+        "/g100_work/INF25_litebird_1/martasilvia/ideal/e2e_ns" + str(nside) + "/"
+    )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later 
+    #user_email = "micheli.1797678@studenti.uniroma1.it"  # COMPLETE HERE   #your email for notification
+    user_email = "marta.monelli@ipmu.jp" #FIXME
+
+    simulation_seed = isim # e.g. 1234
+    name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
+    # create TOML files for e2e_simulation.py for each isim
+    toml_filename = coderoot + "params/" + "e2e_" + name + "_params" + ".toml"
+
+    with open(toml_filename, "w") as f:
+        f.write("[general]\n")
+        f.write("imo_location = '" + imo_location + "'\n")
+        f.write("imo_version = '" + imo_version + "'\n")
+        f.write("telescope = '" + telescope + "'\n")
+        f.write("detectors = '" + str(detectors) + "'\n")
+        f.write("mission_time_days = '" + str(sim_days) + "'\n")
+        f.write("[simulation]\n")
+        f.write("name = '" + name + "'\n")
+        f.write("base_path = '" + base_path + "'\n")
+        f.write("start_time = '" + start_time + "'\n")
+        f.write("duration_s = '" + str(sim_days) + " days'\n")
+        f.write("nside = " + str(nside) + "\n")
+        f.write("lmax = " + str(lmax) + "\n")
+        f.write("mmax = " + str(mmax) + "\n")
+        f.write("want_CMB = "+ str(want_CMB).lower() +"\n")
+        f.write("CMB_seed = " + str(CMB_seed) + "\n")
+        f.write("want_FG = " + str(want_FG).lower()+ "\n")
+        f.write("FG_model = '" + FG_model + "'\n")
+        f.write("input_sky_location = '" + input_sky_location + "'\n")
+        f.write("want_signal_per_detector = " + str(want_signal_per_detector).lower() + "\n")
+        f.write("want_BP_integration = " + str(want_BP_integration).lower() + "\n")
+        f.write("want_dipole_signal = " + str(want_dipole_signal).lower() + "\n")
+        f.write("want_2f = " + str(want_2f).lower() + "\n")
+        f.write("want_non_linearity = " + str(want_non_linearity).lower() + "\n")
+        f.write("want_gain_drift = " + str(want_gain_drift).lower() + "\n")
+        f.write("tod_method = '" + tod_method + "'\n")
+        f.write("use_hwp = " + str(use_hwp).lower() + "\n")
+        f.write("noise = '" + noise + "'\n")
+        f.write("save_tod = " + str(save_tod).lower() + "\n")
+        f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
+        f.write("mapmaking_type = '" + mapmaking_type + "'\n")
+
+        f.close()
+
+    # run e2e_simulation.py
+    slurm_e2e = coderoot + "slurm_" + name + ".sl" 
+
+    slurm = """#!/bin/bash
+#SBATCH --time={walle2e}                         #The requested execution time (max time) in hh:mm:ss
+#SBATCH --nodes={nnodese2e}                      #The number of requested nodes
+#SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=375300                             #The requested memory per node
+#SBATCH --job-name={name}                        #The job name
+#SBATCH --account=INF25_litebird_1               #Project name
+{partition}
+#SBATCH --mail-type=ALL                          #Send me an email at job start/end
+#SBATCH --mail-user={user_email}                 #User mail address
+#SBATCH --output={name}.out
+#SBATCH --error={name}.err
+
+cd {coderoot}
+export OMP_NUM_THREADS=1
+
+srun python -c "from e2e_simulation import e2e_sim_production;e2e_sim_production('{toml_filename}','{isim}','{channel}','{simulation_seed}')" 
+"""
+
+    slurm = slurm.format(**locals())
+    f = open(slurm_e2e, "wt")
+    f.write(slurm)
+    f.close()
+
+    command = "sbatch " + slurm_e2e
+    if pid is not None:
+        command = "sbatch --dependency=afterok:" + str(pid) + " " + slurm_e2e
+
+    #process = subprocess.Popen(
+    #    "sbatch " + slurm_e2e, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    #)
+    #(stdout_data, stderr_data) = process.communicate()
+
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout_data, stderr_data) = process.communicate()
+    stdout_data = stdout_data.decode("utf-8")
+    pid = stdout_data.split("job ")[1].split("\n")[0]
+
+    # print useful information
+    print(str(detectors) + "_sim_" + str(isim) + "\n")
+
+    print("e2e")
+    #print("out: " + str(stdout_data).split("b'")[1][:-3])
+    #print("err: " + str(stderr_data).split("b'")[1][:-3])
+    print("")

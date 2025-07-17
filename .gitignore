@@ -1,3 +1,10 @@
+# slurm-relate stuff
+*.sl
+*.out
+*.err
+job_id.txt
+params/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -4,12 +4,13 @@ import time
 from pathlib import Path
 from typing import Union
 
-import brahmap
+#import brahmap
 import healpy as hp
 import litebird_sim as lbs
 import matplotlib.pylab as plt
 import numpy as np
 from astropy.time import Time
+import gzip
 
 FG_COMPLEXITIES = {
     "low_complexity": [
@@ -92,6 +93,9 @@ def e2e_sim_production(
     if rank == 0:
         t_in = time.time()
 
+        # initializing the IMO
+    imo = lbs.Imo(flatfile_location="/g100_work/INF25_litebird_1/martasilvia/IMo_LiteBIRD/Reformation_Plan/option2bM/") #FIXME
+
     if rank == 0:
         print("Doing sim: " + str(isim).zfill(4))
 
@@ -99,6 +103,7 @@ def e2e_sim_production(
         parameter_file=toml_filename,
         mpi_comm=comm,
         random_seed=int(seed),
+        imo=imo,
     )
 
     # extract useful parameters
@@ -135,8 +140,7 @@ def e2e_sim_production(
 
     save_invcovpp = sim.parameters["simulation"]["save_invcovpp"]
 
-    # initializing the IMO
-    imo = lbs.Imo(flatfile_location=imo_location)
+    input_sky_location = sim.parameters["simulation"]["input_sky_location"]
 
     if rank == 0:
         print("Mission duration: "+mission_time_days)
@@ -198,6 +202,7 @@ def e2e_sim_production(
             url=f"/releases/{imo_version}/{telescope}/{channel}/{dn}/detector_info",
             imo=imo,
         )
+        det.mueller_hwp = lbs.hwp.mueller_ideal_hwp
         dets.append(det)
 
     if rank == 0:
@@ -232,32 +237,52 @@ def e2e_sim_production(
 
     comm.barrier()
 
-    Mbsparams = lbs.MbsParameters(
-        make_cmb=sim.parameters["simulation"]["want_CMB"],
-        make_fg=sim.parameters["simulation"]["want_FG"],
-        seed_cmb=cmb_seed,
-        fg_models=FG_COMPLEXITIES[sim.parameters["simulation"]["FG_model"]],
-        gaussian_smooth=(True if tod_method == "scan" else False),
-        bandpass_int=sim.parameters["simulation"]["want_BP_integration"],
-        nside=nside,
-        units="K_CMB",
-        maps_in_ecliptic=False,
-        store_alms=(True if tod_method == "convolution" else False),
-        lmax_alms=lmax,
-    )
+    if input_sky_location==None:
+        Mbsparams = lbs.MbsParameters(
+            make_cmb=sim.parameters["simulation"]["want_CMB"],
+            make_fg=sim.parameters["simulation"]["want_FG"],
+            seed_cmb=cmb_seed,
+            fg_models=FG_COMPLEXITIES[sim.parameters["simulation"]["FG_model"]],
+            gaussian_smooth=(True if tod_method == "scan" else False),
+            bandpass_int=sim.parameters["simulation"]["want_BP_integration"],
+            nside=nside,
+            units="K_CMB",
+            maps_in_ecliptic=False,
+            store_alms=(True if tod_method == "convolution" else False),
+            lmax_alms=lmax,
+        )
 
-    sky = sim.get_sky(
-        parameters=Mbsparams,
-        channels=None
-        if sim.parameters["simulation"]["want_signal_per_detector"]
-        else chinfo,
-    )
+        sky = sim.get_sky(
+            parameters=Mbsparams,
+            channels=None
+            if sim.parameters["simulation"]["want_signal_per_detector"]
+            else chinfo,
+        )
+    else:
+        if tod_method == "convolution":
+            sky = np.empty((3,int(lmax*(lmax+1)/2)))
+            if sim.parameters["simulation"]["want_CMB"]:
+                with gzip.open(input_sky_location+"_alm_cmb"+str(isim).zfill(4)+".npy.gz","rb") as f:
+                    sky += np.load(f, allow_pickle=True).item()
+            if sim.parameters["simulation"]["want_FG"]:
+                fg_mod = sim.parameters["simulation"]["FG_model"]
+                with gzip.open(input_sky_location+"_alm_fg_"+fg_mod+"_"+channel+".npy.gz","rb") as f:
+                    sky += np.load(f, allow_pickle=True).item()            
+        else:
+            sky = np.empty((3,12*nside**2))
+            if sim.parameters["simulation"]["want_CMB"]:
+                with gzip.open(input_sky_location+"_map_cmb"+str(isim).zfill(4)+"_"+channel+"_GS_ns"+str(nside).zfill(4)+".npy.gz","rb") as f:
+                    sky += np.load(f, allow_pickle=True)
+            if sim.parameters["simulation"]["want_FG"]:
+                fg_mod = sim.parameters["simulation"]["FG_model"]
+                with gzip.open(input_sky_location+"_map_fg_"+fg_mod+"_"+channel+"_GS_ns"+str(nside).zfill(4)+".npy.gz","rb") as f:
+                    sky += np.load(f, allow_pickle=True)
+
 
     comm.barrier()
     if rank == 0:
         t_sky_generation = time.time()
         print("Time for sky generation: ", t_sky_generation - t_point)
-
 
     if tod_method == "convolution":
         blms = sim.get_gauss_beam_alms(
@@ -394,6 +419,7 @@ def e2e_sim_production(
                     + "_"
                     + str(isim).zfill(4)
                 )
+
                 coords = lbs.coord_sys_to_healpix_string(map_output.coordinate_system)
                 sim.write_healpix_map(
                     map_path + map_name + ".fits",
@@ -420,7 +446,8 @@ def get_components_label(parameters):
     if parameters["simulation"]["want_CMB"]:
         label += "_cmb"
     if parameters["simulation"]["want_FG"]:
-        label += "_fg"
+        label += "_fg_"
+        label += str(parameters["simulation"]["FG_model"])
     if parameters["simulation"]["want_BP_integration"]:
         label += "_bp"
     if parameters["simulation"]["want_dipole_signal"]:

@@ -17,7 +17,7 @@ telescope = "LMHFT"
 # A file with a list of detectors to use
 # The string "all" for using all the detectors in the IMo
 # Integer n for using the first n detectors in the IMo
-detectors = "all"
+detectors = 2
 ntasks_per_node = 48
 # simulation
 start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
@@ -30,7 +30,7 @@ mmax = 4
 want_FG = True
 FG_model = "low_complexity"  # medium_complexity, high_complexity
 want_signal_per_detector = False  # if false generates the same sky for all the detectors
-use_hwp = False
+use_hwp = True
 want_BP_integration = False
 want_dipole_signal = False
 want_2f = False
@@ -40,8 +40,9 @@ tod_method = "scan"  # convolution
 noise = "white"  # one_over_f or False
 save_tod = False
 save_invcovpp = False
-imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # location of the file schema.json
-imo_version = "IMo_vReformationPlan_Option1M"
+input_sky_location = "/g100_work/INF25_litebird_1/lpagano0/simteam/generate_inputs/maps/Option2M" # location of the input maps or alms or None
+imo_location = "/g100_work/INF25_litebird_1/martasilvia/IMo_LiteBIRD/Reformation_Plan/option2bM/"  # location of the file schema.json
+imo_version = "IMo_vReformationPlan_Option2M"
 mapmaking_type = "binned"  # brahmap or all or False
 
 name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
@@ -56,11 +57,11 @@ partition = (
 )
 
 # paths
-coderoot = ""  # COMPLETE HERE   #folder where e2e_simulation.py is stored
+coderoot = "/g100_work/INF25_litebird_1/martasilvia/e2e-simulation/scripts/"  # COMPLETE HERE   #folder where e2e_simulation.py is stored
 base_path = (
-    "/my/path/litebird/e2e_ns" + str(nside) + "/"
+    "/g100_work/INF25_litebird_1/martasilvia/ideal/e2e_ns" + str(nside) + "/"
 )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later
-user_email = ""  # COMPLETE HERE   #your email for notification
+user_email = "marta.monelli@ipmu.jp"  # COMPLETE HERE   #your email for notification
 
 # create TOML files for e2e_simulation.py for each isim
 toml_filename = coderoot + "params/" + "e2e_" + name + "_params" + ".toml"
@@ -84,6 +85,7 @@ with open(toml_filename, "w") as f:
     f.write("CMB_seed = " + str(CMB_seed) + "\n")
     f.write("want_FG = " + str(want_FG).lower()+ "\n")
     f.write("FG_model = '" + FG_model + "'\n")
+    f.write("input_sky_location = '" + input_sky_location + "'\n")
     f.write("want_signal_per_detector = " + str(want_signal_per_detector).lower() + "\n")
     f.write("want_BP_integration = " + str(want_BP_integration).lower() + "\n")
     f.write("want_dipole_signal = " + str(want_dipole_signal).lower() + "\n")
