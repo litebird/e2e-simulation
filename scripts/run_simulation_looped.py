@@ -47,72 +47,72 @@ channels = ["MF1_140", "HF2_402", ]
 pid = None
 
 for sim_idx in range(len(isims)):
-    #for channel_idx in range(len(channels)):
+    for channel_idx in range(len(channels)):
 
-    isim = isims[sim_idx]
-    channel = channels[0]
+        isim = isims[sim_idx]
+        channel = channels[channel_idx]
 
-    nnodese2e = 2
-    walle2e = "00:30:00"
+        nnodese2e = 2
+        walle2e = "00:30:00"
 
-    partition = (
-        "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
-        if nnodese2e > 2
-        else "#SBATCH --partition=g100_usr_dbg                  #The name of queue to use"
-    )
+        partition = (
+            "#SBATCH --partition=g100_usr_prod                 #The name of queue to use"
+            if nnodese2e > 2
+            else "#SBATCH --partition=g100_usr_dbg                  #The name of queue to use"
+        )
 
-    # paths
-    coderoot = "/g100_work/INF25_litebird_1/martasilvia/e2e-simulation/scripts/"  # COMPLETE HERE   #folder where e2e_simulation.py is stored
-    base_path = (
-        "/g100_work/INF25_litebird_1/martasilvia/ideal/e2e_ns" + str(nside) + "/"
-    )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later 
-    #user_email = "micheli.1797678@studenti.uniroma1.it"  # COMPLETE HERE   #your email for notification
-    user_email = "marta.monelli@ipmu.jp" #FIXME
+        # paths
+        coderoot = "/g100_work/INF25_litebird_1/martasilvia/e2e-simulation/scripts/"  # COMPLETE HERE   #folder where e2e_simulation.py is stored
+        base_path = (
+            "/g100_work/INF25_litebird_1/martasilvia/ideal/e2e_ns" + str(nside) + "/"
+        )  # COMPLETE HERE   #folder where you want to save the output files; sim and channel info added later 
+        #user_email = "micheli.1797678@studenti.uniroma1.it"  # COMPLETE HERE   #your email for notification
+        user_email = "marta.monelli@ipmu.jp" #FIXME
 
-    simulation_seed = isim # e.g. 1234
-    name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
-    # create TOML files for e2e_simulation.py for each isim
-    toml_filename = coderoot + "params/" + "e2e_" + name + "_params" + ".toml"
+        simulation_seed = isim # e.g. 1234
+        name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
+        # create TOML files for e2e_simulation.py for each isim
+        toml_filename = coderoot + "params/" + "e2e_" + name + "_params" + ".toml"
 
-    with open(toml_filename, "w") as f:
-        f.write("[general]\n")
-        f.write("imo_location = '" + imo_location + "'\n")
-        f.write("imo_version = '" + imo_version + "'\n")
-        f.write("telescope = '" + telescope + "'\n")
-        f.write("detectors = '" + str(detectors) + "'\n")
-        f.write("mission_time_days = '" + str(sim_days) + "'\n")
-        f.write("[simulation]\n")
-        f.write("name = '" + name + "'\n")
-        f.write("base_path = '" + base_path + "'\n")
-        f.write("start_time = '" + start_time + "'\n")
-        f.write("duration_s = '" + str(sim_days) + " days'\n")
-        f.write("nside = " + str(nside) + "\n")
-        f.write("lmax = " + str(lmax) + "\n")
-        f.write("mmax = " + str(mmax) + "\n")
-        f.write("want_CMB = "+ str(want_CMB).lower() +"\n")
-        f.write("CMB_seed = " + str(CMB_seed) + "\n")
-        f.write("want_FG = " + str(want_FG).lower()+ "\n")
-        f.write("FG_model = '" + FG_model + "'\n")
-        f.write("input_sky_location = '" + input_sky_location + "'\n")
-        f.write("want_signal_per_detector = " + str(want_signal_per_detector).lower() + "\n")
-        f.write("want_BP_integration = " + str(want_BP_integration).lower() + "\n")
-        f.write("want_dipole_signal = " + str(want_dipole_signal).lower() + "\n")
-        f.write("want_2f = " + str(want_2f).lower() + "\n")
-        f.write("want_non_linearity = " + str(want_non_linearity).lower() + "\n")
-        f.write("want_gain_drift = " + str(want_gain_drift).lower() + "\n")
-        f.write("tod_method = '" + tod_method + "'\n")
-        f.write("use_hwp = " + str(use_hwp).lower() + "\n")
-        f.write("noise = '" + noise + "'\n")
-        f.write("save_tod = " + str(save_tod).lower() + "\n")
-        f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
-        f.write("mapmaking_type = '" + mapmaking_type + "'\n")
+        with open(toml_filename, "w") as f:
+            f.write("[general]\n")
+            f.write("imo_location = '" + imo_location + "'\n")
+            f.write("imo_version = '" + imo_version + "'\n")
+            f.write("telescope = '" + telescope + "'\n")
+            f.write("detectors = '" + str(detectors) + "'\n")
+            f.write("mission_time_days = '" + str(sim_days) + "'\n")
+            f.write("[simulation]\n")
+            f.write("name = '" + name + "'\n")
+            f.write("base_path = '" + base_path + "'\n")
+            f.write("start_time = '" + start_time + "'\n")
+            f.write("duration_s = '" + str(sim_days) + " days'\n")
+            f.write("nside = " + str(nside) + "\n")
+            f.write("lmax = " + str(lmax) + "\n")
+            f.write("mmax = " + str(mmax) + "\n")
+            f.write("want_CMB = "+ str(want_CMB).lower() +"\n")
+            f.write("CMB_seed = " + str(CMB_seed) + "\n")
+            f.write("want_FG = " + str(want_FG).lower()+ "\n")
+            f.write("FG_model = '" + FG_model + "'\n")
+            f.write("input_sky_location = '" + input_sky_location + "'\n")
+            f.write("want_signal_per_detector = " + str(want_signal_per_detector).lower() + "\n")
+            f.write("want_BP_integration = " + str(want_BP_integration).lower() + "\n")
+            f.write("want_dipole_signal = " + str(want_dipole_signal).lower() + "\n")
+            f.write("want_2f = " + str(want_2f).lower() + "\n")
+            f.write("want_non_linearity = " + str(want_non_linearity).lower() + "\n")
+            f.write("want_gain_drift = " + str(want_gain_drift).lower() + "\n")
+            f.write("tod_method = '" + tod_method + "'\n")
+            f.write("use_hwp = " + str(use_hwp).lower() + "\n")
+            f.write("noise = '" + noise + "'\n")
+            f.write("save_tod = " + str(save_tod).lower() + "\n")
+            f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
+            f.write("mapmaking_type = '" + mapmaking_type + "'\n")
 
-        f.close()
+            f.close()
 
-    # run e2e_simulation.py
-    slurm_e2e = coderoot + "slurm_" + name + ".sl" 
+        # run e2e_simulation.py
+        slurm_e2e = coderoot + "slurm_" + name + ".sl" 
 
-    slurm = """#!/bin/bash
+        slurm = """#!/bin/bash
 #SBATCH --time={walle2e}                         #The requested execution time (max time) in hh:mm:ss
 #SBATCH --nodes={nnodese2e}                      #The number of requested nodes
 #SBATCH --ntasks-per-node={ntasks_per_node}      #The number of requested tasks/node
@@ -132,29 +132,29 @@ export OMP_NUM_THREADS=1
 srun python -c "from e2e_simulation import e2e_sim_production;e2e_sim_production('{toml_filename}','{isim}','{channel}','{simulation_seed}')" 
 """
 
-    slurm = slurm.format(**locals())
-    f = open(slurm_e2e, "wt")
-    f.write(slurm)
-    f.close()
+        slurm = slurm.format(**locals())
+        f = open(slurm_e2e, "wt")
+        f.write(slurm)
+        f.close()
 
-    command = "sbatch " + slurm_e2e
-    if pid is not None:
-        command = "sbatch --dependency=afterok:" + str(pid) + " " + slurm_e2e
+        command = "sbatch " + slurm_e2e
+        if pid is not None:
+            command = "sbatch --dependency=afterok:" + str(pid) + " " + slurm_e2e
 
-    #process = subprocess.Popen(
-    #    "sbatch " + slurm_e2e, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    #)
-    #(stdout_data, stderr_data) = process.communicate()
+        #process = subprocess.Popen(
+        #    "sbatch " + slurm_e2e, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        #)
+        #(stdout_data, stderr_data) = process.communicate()
 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (stdout_data, stderr_data) = process.communicate()
-    stdout_data = stdout_data.decode("utf-8")
-    pid = stdout_data.split("job ")[1].split("\n")[0]
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (stdout_data, stderr_data) = process.communicate()
+        stdout_data = stdout_data.decode("utf-8")
+        pid = stdout_data.split("job ")[1].split("\n")[0]
 
-    # print useful information
-    print(str(detectors) + "_sim_" + str(isim) + "\n")
+        # print useful information
+        print(str(detectors) + "_sim_" + str(isim) + "\n")
 
-    print("e2e")
-    #print("out: " + str(stdout_data).split("b'")[1][:-3])
-    #print("err: " + str(stderr_data).split("b'")[1][:-3])
-    print("")
+        print("e2e")
+        #print("out: " + str(stdout_data).split("b'")[1][:-3])
+        #print("err: " + str(stderr_data).split("b'")[1][:-3])
+        print("")
