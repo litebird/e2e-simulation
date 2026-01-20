@@ -44,7 +44,10 @@ imo_location = "/my/path/litebird/IMo_LiteBIRD/Reformation_Plan/option1M/"  # lo
 imo_version = "IMo_vReformationPlan_Option1M"
 mapmaking_type = "binned"  # brahmap or all or False
 
-name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
+if detectors != "all" and not isinstance(detectors, int):
+    name = "sim_" + str(isim).zfill(4) + "_" + channel + "_custom_det"
+else:
+    name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
 
 nnodese2e = 2
 walle2e = "00:30:00"
