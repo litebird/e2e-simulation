@@ -79,7 +79,7 @@ with open(toml_filename, "w") as f:
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("duration_s = '" + str(sim_days) + " days'\n")
+    f.write("duration_s = '" + str(sim_days*24*60*60) + " seconds'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
     f.write("mmax = " + str(mmax) + "\n")

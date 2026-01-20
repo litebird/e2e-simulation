@@ -47,6 +47,11 @@ def is_number(s):
     except ValueError:
         return False
 
+def get_rescaled_net(detnames: list[str], chinfo: lbs.FreqChannelInfo, duration_in_years: int | float):
+    used_detectors = len(detnames)
+    total_number_of_detectors =  chinfo.number_of_detectors
+    rescaling_factor = np.sqrt(duration_in_years/3 * used_detectors / total_number_of_detectors)
+    return chinfo.net_detector_ukrts * rescaling_factor
 
 def e2e_sim_production(
     toml_filename,
@@ -198,6 +203,7 @@ def e2e_sim_production(
             url=f"/releases/{imo_version}/{telescope}/{channel}/{dn}/detector_info",
             imo=imo,
         )
+        det.net_ukrts = get_rescaled_net(detnames, chinfo, duration_in_years=float(mission_time_days)/365.25)
         dets.append(det)
 
     if rank == 0:
