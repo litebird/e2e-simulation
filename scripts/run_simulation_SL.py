@@ -4,7 +4,7 @@ import sys
 import numpy as np
 
 # command line example (collecting jobs' id in job_id.txt file):
-# python run_simulation.py 0 LF1_40 1234 >> job_id.txt
+# python run_simulation.py 0 LF1_40 Option1 >> job_id.txt
 
 # parameters
 # general
@@ -15,6 +15,9 @@ option = sys.argv[3] # e.g. "Option1"
 simulation_seed = isim
 telescope = "LMHFT"
 save_det_folder = f"/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/det_files/{option}/"
+
+sky_path = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/inputs_for_MDR2"
+beam_path = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/beam_files"
 
 # Detectors: three possibilities
 # A file with a list of detectors to use
@@ -107,6 +110,8 @@ with open(toml_filename, "w") as f:
     f.write("save_tod = " + str(save_tod).lower() + "\n")
     f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
     f.write("mapmaking_type = '" + mapmaking_type + "'\n")
+    f.write("sky_path = '" + sky_path + "'\n")
+    f.write("beam_path = '" + beam_path + "'\n")
 
     f.close()
 
