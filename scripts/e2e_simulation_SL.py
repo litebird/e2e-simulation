@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Union
 
-import brahmap
+#import brahmap
 import healpy as hp
 import litebird_sim as lbs
 import matplotlib.pylab as plt

@@ -21,7 +21,7 @@ save_det_folder = f"/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/d
 # The string "all" for using all the detectors in the IMo
 # Integer n for using the first n detectors in the IMo
 detectors = save_det_folder + "detectors_" + telescope + "_" + channel + ".txt"
-ntasks_per_node = 96
+ntasks_per_node = 112
 # simulation
 start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
 sim_days = 365  # simulated days
@@ -121,7 +121,6 @@ slurm = """#!/bin/bash
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=375300                             #The requested memory per node
 #SBATCH --job-name={name}                        #The job name
-#SBATCH --account=INF25_litebird_1               #Project name
 {clusters}
 {partition}
 {qos}
