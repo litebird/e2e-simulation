@@ -103,6 +103,9 @@ def e2e_sim_production(
     if rank == 0:
         print("Doing sim: " + str(isim).zfill(4))
 
+    # initializing the IMO
+    imo = lbs.Imo(flatfile_location="/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/IMo_vPostKDP2/json1/") #FIXME: hardcoded
+
     sim = lbs.Simulation(
         parameter_file=toml_filename,
         mpi_comm=comm,
@@ -113,6 +116,7 @@ def e2e_sim_production(
     # more params (Marta)
     sky_path = sim.parameters["simulation"]["sky_path"]
     beam_path = sim.parameters["simulation"]["beam_path"]
+    option = sim.parameters["general"]["option"]
 
     # extract useful parameters
     imo_location = sim.parameters["general"]["imo_location"]
@@ -147,9 +151,6 @@ def e2e_sim_production(
     mapmaking_type = sim.parameters["simulation"]["mapmaking_type"]
 
     save_invcovpp = sim.parameters["simulation"]["save_invcovpp"]
-
-    # initializing the IMO
-    imo = lbs.Imo(flatfile_location=imo_location)
 
     if rank == 0:
         print("Mission duration: "+mission_time_days)
@@ -199,7 +200,7 @@ def e2e_sim_production(
     elif isinstance(detectors, str) and os.path.exists(detectors):
         det_names_file_path = detectors
         det_file = np.genfromtxt(det_names_file_path, skip_header=1, dtype=str)
-        detnames = det_file[:, 0]
+        detnames = det_file[:, 5]
     else:
         msg = "'detectors' is neither an integer, nor the flag 'all', nor a path to a file"
         raise ValueError(msg)
@@ -250,14 +251,14 @@ def e2e_sim_production(
     ###
     if sky_path != None:
         ncoeff = lbs.SphericalHarmonics.num_of_alm_from_lmax(4096,4096)                 # lmax and mmax from Luca's input alm coefficients
-        blms = lbs.SphericalHarmonics(values=(np.zeros((3,ncoeff),lmax=4096,mmax=4096)))
+        sky = lbs.SphericalHarmonics(values=np.zeros((3,ncoeff)),lmax=4096,mmax=4096)
         if sim.parameters["simulation"]["want_CMB"]:
-            with gzip.open("{sky_path}/MDR2_alm_cmb{isim}.npy.gz","rb") as f:
-                blms += np.load(f, allow_pickle=True).item()
+            with gzip.open(f"{sky_path}/MDR2_alm_cmb{isim}.npy.gz","rb") as f:
+                sky += np.load(f, allow_pickle=True).item()
         if sim.parameters["simulation"]["want_FG"]:
             fg_model = sim.parameters["simulation"]["FG_model"]
-            with gzip.open("{sky_path}/MDR2_alm_fg_{fg_model}_{channel}.npy.gz","rb") as f:
-                blms += np.load(f, allow_pickle=True).item()        
+            with gzip.open(f"{sky_path}/MDR2_alm_fg_{fg_model}_{channel}.npy.gz","rb") as f:
+                sky += np.load(f, allow_pickle=True).item()        
     else: 
         Mbsparams = lbs.MbsParameters(
             make_cmb=sim.parameters["simulation"]["want_CMB"],
@@ -289,9 +290,11 @@ def e2e_sim_production(
         
         ###
         if beam_path != None:
+            blms = {}
             for i in range(len(detnames)):
-                dets[i].beam = lbs.SphericalHarmonics.read_fits(beam_path)
-
+                detname = detnames[i]
+                blm = lbs.SphericalHarmonics.read_fits("{beam_path}/{option}/beam_{channel}_{detname}_nside1024.fits")
+                blms[detname] = blm
         else:    
             blms = sim.get_gauss_beam_alms(
                 lmax=lmax,

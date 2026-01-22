@@ -4,12 +4,12 @@ import sys
 import numpy as np
 
 # command line example (collecting jobs' id in job_id.txt file):
-# python run_simulation.py 0 LF1_40 Option1 >> job_id.txt
+# python run_simulation.py 0 L1_L Option1 >> job_id.txt
 
 # parameters
 # general
 isim = sys.argv[1].zfill(4)  # index of the simulation
-channel = sys.argv[2] # e.g. "LF1_40"
+channel = sys.argv[2] # e.g. "L1_L"
 option = sys.argv[3] # e.g. "Option1"
 
 simulation_seed = isim
@@ -81,6 +81,7 @@ toml_filename = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/outp
 
 with open(toml_filename, "w") as f:
     f.write("[general]\n")
+    f.write("option = '" + option + "'\n")
     f.write("imo_location = '" + imo_location + "'\n")
     f.write("imo_version = '" + imo_version + "'\n")
     f.write("telescope = '" + telescope + "'\n")
@@ -90,7 +91,7 @@ with open(toml_filename, "w") as f:
     f.write("name = '" + name + "'\n")
     f.write("base_path = '" + base_path + "'\n")
     f.write("start_time = '" + start_time + "'\n")
-    f.write("duration_s = '" + str(sim_days*24*60*60) + " seconds'\n")
+    f.write("duration_s = '" + str(sim_days*24*60*60) + "'\n")
     f.write("nside = " + str(nside) + "\n")
     f.write("lmax = " + str(lmax) + "\n")
     f.write("mmax = " + str(mmax) + "\n")
