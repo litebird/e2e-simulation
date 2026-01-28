@@ -16,7 +16,7 @@ simulation_seed = isim
 telescope = "LMHFT"
 save_det_folder = f"/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/det_files/{option}/"
 
-sky_path = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/inputs_for_MDR2"
+sky_path = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/inputs_for_MDR2/maps"
 beam_path = "/dss/dssfs02/lwp-dss-0001/pn36hu/pn36hu-dss-0000/beam_sims/beam_files"
 
 # Detectors: three possibilities
@@ -28,11 +28,11 @@ ntasks_per_node = 112
 # simulation
 start_time = "2034-04-01T00:00:00"  # ``astropy.time.Time``
 sim_days = 365  # simulated days
-want_CMB = False ###FIXME
+want_CMB = False
 CMB_seed = 5678
 nside = 512
 lmax = 2 * nside
-mmax = lmax - 4
+mmax = 20
 want_FG = True
 FG_model = "low_complexity"  # medium_complexity, high_complexity
 want_signal_per_detector = False  # if false generates the same sky for all the detectors
@@ -42,7 +42,7 @@ want_2f = False
 want_non_linearity = False
 want_gain_drift = False
 tod_method = "convolution"  # scan
-noise = "white" #or one_over_f
+noise = False #white or one_over_f
 save_tod = False
 save_invcovpp = False
 
@@ -63,7 +63,7 @@ else:
     name = "sim_" + str(isim).zfill(4) + "_" + channel + "_" + str(detectors)
 
 nnodese2e = 2
-walle2e = "00:30:00"
+walle2e = "01:00:00" #FIXME: changed for testing
 
 clusters = "#SBATCH --clusters=cm4"
 partition = "#SBATCH --partition=cm4_std"
@@ -107,7 +107,7 @@ with open(toml_filename, "w") as f:
     f.write("want_gain_drift = " + str(want_gain_drift).lower() + "\n")
     f.write("tod_method = '" + tod_method + "'\n")
     f.write("use_hwp = " + str(use_hwp).lower() + "\n")
-    f.write("noise = '" + noise + "'\n")
+    f.write("noise = " + str(noise).lower() + "\n")
     f.write("save_tod = " + str(save_tod).lower() + "\n")
     f.write("save_invcovpp = " + str(save_invcovpp).lower() + "\n")
     f.write("mapmaking_type = '" + mapmaking_type + "'\n")
@@ -138,7 +138,7 @@ slurm = """#!/bin/bash
 cd {coderoot}
 export OMP_NUM_THREADS=1
 
-srun python -c "from e2e_simulation_SL import e2e_sim_production;
+mpirun -n {nnodese2e} python -c "from e2e_simulation_SL import e2e_sim_production;
 e2e_sim_production('{toml_filename}','{isim}','{channel}','{simulation_seed}')"
 """
 

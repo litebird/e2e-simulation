@@ -251,7 +251,7 @@ def e2e_sim_production(
     ###
     if sky_path != None:
         ncoeff = lbs.SphericalHarmonics.num_of_alm_from_lmax(4096,4096)                 # lmax and mmax from Luca's input alm coefficients
-        sky = lbs.SphericalHarmonics(values=np.zeros((3,ncoeff)),lmax=4096,mmax=4096)
+        sky = lbs.SphericalHarmonics(values=np.zeros((3,ncoeff),dtype=complex),lmax=4096,mmax=4096)
         if sim.parameters["simulation"]["want_CMB"]:
             with gzip.open(f"{sky_path}/MDR2_alm_cmb{isim}.npy.gz","rb") as f:
                 sky += np.load(f, allow_pickle=True).item()
@@ -293,7 +293,7 @@ def e2e_sim_production(
             blms = {}
             for i in range(len(detnames)):
                 detname = detnames[i]
-                blm = lbs.SphericalHarmonics.read_fits("{beam_path}/{option}/beam_{channel}_{detname}_nside1024.fits")
+                blm = lbs.SphericalHarmonics.read_fits(f"{beam_path}/{option}/beam_{channel}_{detname}_nside1024.fits")
                 blms[detname] = blm
         else:    
             blms = sim.get_gauss_beam_alms(
@@ -312,6 +312,7 @@ def e2e_sim_production(
             sky_alms=sky,
             beam_alms=blms,
             convolution_params=Convparams,
+            nside_centering = nside,
         )
     else:
         sim.fill_tods(sky)
